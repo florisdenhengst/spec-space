@@ -1,5 +1,5 @@
 # LTL parser for spec-space
 
-Requires Py.test
+Requires Py.test, PLY
 
 ## TBC
