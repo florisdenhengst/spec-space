@@ -1,5 +1,6 @@
 #general
 .DS_Store
+*.out
 
 #Python stuff
 # Byte-compiled / optimized / DLL files
