@@ -1,5 +1,5 @@
 #!/bin/bash
-pip2 install ply & pip2 install pytest
+#pip2 install ply & pip2 install pytest
 mkdir -p tmp
 cd tmp
 wget https://github.com/marcthurley/sharpSAT/archive/master.zip
