@@ -49,7 +49,7 @@ class AttributeNamePool(object):
     __dictionary = {}
 
     @classmethod
-    def get_unique_name(cls, registering_obj = None, base_name = '', reset = False):
+    def get_unique_index(cls, registering_obj = None, base_name = '', reset = False):
         '''
         Given a string and a reference object, this method will return
         a new string in which an integer is appended to the original
@@ -76,7 +76,7 @@ class AttributeNamePool(object):
         #if base_name != '' and obj_number == -1:
         #    return base_name
 
-        return '%s_%d' % (base_name, obj_number)
+        return obj_number
 
 
 class Attribute(Subject):
@@ -105,7 +105,9 @@ class Attribute(Subject):
         self.merging_attribute = None
         self.base_name = base_name
         self.context = context
-        self.unique_name = AttributeNamePool.get_unique_name(context, self.base_name)
+        self.index = AttributeNamePool.get_unique_index(context, self.base_name)
+        # #return '%s_%d' % (base_name, obj_number) 
+        #self.unique_name = AttributeNamePool.get_unique_name(context, self.base_name)
 
     def set_state(self, merging_attribute):
         '''

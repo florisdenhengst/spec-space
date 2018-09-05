@@ -183,7 +183,7 @@ class Literal(Attribute, LTLFormula):
         if with_base_names:
             return prefix + self.literals.values()[0].base_name
         else:
-            return prefix + self.literals.values()[0].unique_name
+            return prefix + self.literals.values()[0].base_name + '_' + prefix + str(self.literals.values()[0].index)
 
     def update(self, updated_subject):
         '''
@@ -262,7 +262,8 @@ class BinaryFormula(LTLFormula):
         self.left_formula = left_formula
         self.right_formula = right_formula
 
-        self.process_literals(merge_literals)
+        #FIXME: Had to comment this out in order to make things work.
+        #self.process_literals(merge_literals)
 
     def update(self, updated_subject):
         '''
