@@ -7,12 +7,15 @@ Module for measuring LTL formulas.
 '''
 
 from spec_space.parser.parser import LTL_PARSER
-from spec_space.formula import Next, VarNext, Disjunction, Conjunction, UnaryFormula, Literal, BinaryFormula, Globally, Eventually;
+from spec_space.formula import TrueFormula, FalseFormula, Constant, Next, VarNext, Disjunction, Conjunction, UnaryFormula, Literal, BinaryFormula, Globally, Eventually;
 from copy import deepcopy
 
 #f = LTL_PARSER.parse("G(tom & maso)")
-f = LTL_PARSER.parse("F(G(tom & X(maso)))")
-
+#f = LTL_PARSER.parse("F(G(tom & maso))")
+f = LTL_PARSER.parse("((tom | maso) & (tom | maso))") # FIXME: this exposes the renaming issue. It should not all be considered the same vars.
+#f = LTL_PARSER.parse("F(G(tom & X(maso)))")
+#f = LTL_PARSER.parse("a & false")
+#f = LTL_PARSER.parse("a & XXXXa")
 N = 3
 
 ''' Turn a formula into a conjunction with itself and a shifted copy of itself.'''
@@ -35,13 +38,17 @@ def disj(f, n):
 ''' Shift all variable indices by one and return the formula. '''
 def shift(f, n):
     if isinstance(f, Literal):
-        f.index = f.index + n # FIXME: what if index is greater than N?
+        f.index = f.index + n
+        if (f.index > N):
+            return FalseFormula()
     if isinstance(f, BinaryFormula):
-        shift(f.left_formula, n)
-        shift(f.right_formula, n)
+        f.left_formula = shift(f.left_formula, n)
+        f.right_formula = shift(f.right_formula, n)
+
     if isinstance(f, UnaryFormula):
-        shift(f.right_formula, n)
-    return f    
+        f.right_formula = shift(f.right_formula, n)
+
+    return f
 
 ''' Expand LTL formula into a Boolean expression, observing time bound N. '''
 def expand(f):
@@ -61,7 +68,50 @@ def expand(f):
 
     return f
 
-f = expand(f)
+''' Apply Boolean reduction rules to formula. '''
+def reduce(f):
+    if isinstance(f, BinaryFormula):
+        f.left_formula = reduce(f.left_formula)
+        f.right_formula = reduce(f.right_formula)
+    
+        if isinstance(f, Conjunction):
+            if isinstance(f.left_formula, FalseFormula) \
+            or isinstance(f.right_formula, FalseFormula):
+                return FalseFormula()
+            if isinstance(f.left_formula, TrueFormula):
+                return f.right_formula
+            if isinstance(f.right_formula, TrueFormula):
+                return f.left_formula
+            if f.left_formula == f.right_formula: # FIXME: this won't work. NuSVM?
+                return f.left_formula
+            # FIXME:
+            # A and ~A = 0
+        if isinstance(f, Disjunction):
+            if isinstance(f.left_formula, FalseFormula):
+                if isinstance(f.right_formula, FalseFormula):
+                    return FalseFormula()
+                else:
+                    return f.right_formula
+            else:
+                if isinstance(f.right_formula, FalseFormula):
+                    return f.left_formula
+            if (isinstance(f.left_formula, TrueFormula) \
+            or isinstance(f.right_formula, TrueFormula)):
+                return TrueFormula()
+            if f.left_formula == f.right_formula: # FIXME: this won't work. NuSVM?
+                return f.left_formula
+            # FIXME:
+            # A or ~A = 1
+    
+    #FIXME:
+    # ~~A = A
+    # A or ~AB = A or B
+    if isinstance(f, UnaryFormula):
+        reduce(f.right_formula)
+
+    return f
+
+f = reduce(expand(f))
 print(f.generate(with_base_names=False, ignore_precedence=True))
 # print(f.deps.assigned);
 # print(f.update_deps())
