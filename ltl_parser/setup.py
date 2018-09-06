@@ -23,7 +23,7 @@ setup(
     # https://packaging.python.org/en/latest/single_source_version.html
     version='0.0.1.dev1',
 
-    description='A library to manipulate LTL formulae in python',
+    description='A library for computing the magnitudes of and distance between LTL formulae.',
     long_description=long_description,
 
     # The project's main homepage.
@@ -54,7 +54,7 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.3',
     ],
 
     # What does your project relate to?
@@ -68,7 +68,7 @@ setup(
     # project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['ply', 'py', 'pytest'],
+    install_requires=['ply', 'py', 'pytest', 'pyeda'],
 
     # List additional groups of dependencies here (e.g. development dependencies).
     # You can install these using the following syntax, for example:

@@ -1,2 +1,2 @@
 #!/bin/bash
-python2.7 spec_space/measure.py $1
+python spec_space/measure.py $1
