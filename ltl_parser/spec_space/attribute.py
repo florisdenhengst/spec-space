@@ -106,8 +106,16 @@ class Attribute(Subject):
         self.base_name = base_name
         self.context = context
         self.index = AttributeNamePool.get_unique_index(context, self.base_name)
-        # #return '%s_%d' % (base_name, obj_number) 
+        # #return '%s_%d' % (base_name, obj_number)
         #self.unique_name = AttributeNamePool.get_unique_name(context, self.base_name)
+
+
+    @property
+    def unique_name(self):
+        '''
+        return unique name string
+        '''
+        return self.base_name + str(self.index)
 
     def set_state(self, merging_attribute):
         '''
@@ -146,7 +154,3 @@ class AttributeStateError(Exception):
     state before it has been set
     '''
     pass
-
-
-
-

@@ -74,7 +74,7 @@ def reduce(f):
     if isinstance(f, BinaryFormula):
         f.left_formula = reduce(f.left_formula)
         f.right_formula = reduce(f.right_formula)
-    
+
         if isinstance(f, Conjunction):
             if isinstance(f.left_formula, FalseFormula) \
             or isinstance(f.right_formula, FalseFormula):
@@ -103,7 +103,7 @@ def reduce(f):
                 return f.left_formula
             # FIXME:
             # A or ~A = 1
-    
+
     #FIXME:
     # ~~A = A
     # A or ~AB = A or B
