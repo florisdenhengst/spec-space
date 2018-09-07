@@ -9,7 +9,7 @@ Module for measuring LTL formulas.
 from spec_space.parser.parser import LTL_PARSER
 from spec_space.formula import TrueFormula, FalseFormula, Constant, Next, VarNext, Disjunction, Conjunction, UnaryFormula, Literal, BinaryFormula, Globally, Eventually;
 from copy import deepcopy
-#from pyeda.boolalg import boolfunc
+from pyeda.boolalg.expr import expr, expr2dimacscnf
 
 #f = LTL_PARSER.parse("G(tom & maso)")
 #f = LTL_PARSER.parse("F(G(tom & maso))")
@@ -114,5 +114,6 @@ def reduce(f):
 
 f = reduce(expand(f))
 print(f.generate(with_base_names=False, ignore_precedence=True))
+#print(expr2dimacscnf(expr(f.generate(with_base_names=False, ignore_precedence=True))))
 # print(f.deps.assigned);
 # print(f.update_deps())
