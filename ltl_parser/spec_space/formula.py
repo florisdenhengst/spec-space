@@ -464,7 +464,7 @@ class UnaryFormula(LTLFormula):
         object structure
         '''
 
-        return self.literals.viewitems() | self.right_formula.get_literal_items()
+        return self.literals.items() | self.right_formula.get_literal_items()
 
 
     def update(self, updated_subject):
