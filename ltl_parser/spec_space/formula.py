@@ -138,7 +138,7 @@ class LTLFormula(Observer):
         Returns a dictionary view including all the literals in the formula
         '''
 
-        return self.literals.viewitems()
+        return self.literals.items()
 
     def __repr__(self):
         '''
@@ -182,9 +182,9 @@ class Literal(Attribute, LTLFormula):
 
         literal_obj = next(iter(self.literals.values()))
         if with_base_names:
-            return prefix + literal_obj.base_name 
+            return prefix + literal_obj.base_name
         else:
-            return prefix + literal_obj.base_name + '_' + prefix + str(literal_obj.index)
+            return prefix + literal_obj.unique_name
 
     def update(self, updated_subject):
         '''
@@ -196,7 +196,7 @@ class Literal(Attribute, LTLFormula):
 
         super(Literal, self).update(updated_subject)
 
-        self.unique_name = updated_attribute.unique_name
+        self.index = updated_attribute.index
         self.l_type = updated_subject.l_type
 
 
@@ -263,8 +263,7 @@ class BinaryFormula(LTLFormula):
         self.left_formula = left_formula
         self.right_formula = right_formula
 
-        #FIXME: Had to comment this out in order to make things work.
-        #self.process_literals(merge_literals)
+        self.process_literals(merge_literals)
 
     def update(self, updated_subject):
         '''
@@ -297,7 +296,7 @@ class BinaryFormula(LTLFormula):
         Returns all literals looking recursively in all the formula
         object structure
         '''
-        return self.literals.viewitems() | self.left_formula.get_literal_items() \
+        return self.literals.items() | self.left_formula.get_literal_items() \
                 | self.right_formula.get_literal_items()
 
 
@@ -311,7 +310,7 @@ class BinaryFormula(LTLFormula):
         left_side_literals = dict(self.left_formula.get_literal_items())
         right_side_literals = dict(self.right_formula.get_literal_items())
 
-        for key in (left_side_literals.viewkeys() & right_side_literals.viewkeys()):
+        for key in (left_side_literals.keys() & right_side_literals.keys()):
 
             conflict_list.append( (left_side_literals[key], right_side_literals[key]) )
 
