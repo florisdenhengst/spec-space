@@ -13,7 +13,8 @@ from pyeda.boolalg.expr import expr, expr2dimacscnf
 
 #f = LTL_PARSER.parse("G(tom & maso)")
 #f = LTL_PARSER.parse("F(G(tom & maso))")
-f = LTL_PARSER.parse("((tom | maso) & (tom | maso))") # FIXME: this exposes the renaming issue. It should not all be considered the same vars.
+#f = LTL_PARSER.parse("((tom | maso) & (tom | maso))") # FIXME: this exposes the renaming issue. It should not all be considered the same vars.
+f = LTL_PARSER.parse("G(tom & X tom)")
 #f = LTL_PARSER.parse("F(G(tom & X(maso)))")
 #f = LTL_PARSER.parse("a & false")
 #f = LTL_PARSER.parse("a & XXXXa")
@@ -40,8 +41,8 @@ def disj(f, n):
 def shift(f, n):
     if isinstance(f, Literal):
         f.index = f.index + n
-        if (f.index > N):
-            return FalseFormula() # FIXME: alternatively, leave this out and have a "soft" bound
+        # if (f.index > N):
+        #     return FalseFormula() # FIXME: alternatively, leave this out and have a "soft" bound
     if isinstance(f, BinaryFormula):
         f.left_formula = shift(f.left_formula, n)
         f.right_formula = shift(f.right_formula, n)
@@ -114,6 +115,7 @@ def reduce(f):
 
 f = reduce(expand(f))
 print(f.generate(with_base_names=False, ignore_precedence=True))
+#print(f.generate(with_base_names=False, ignore_precedence=True))
 #print(expr2dimacscnf(expr(f.generate(with_base_names=False, ignore_precedence=True))))
 # print(f.deps.assigned);
 # print(f.update_deps())
