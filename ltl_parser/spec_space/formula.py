@@ -181,9 +181,9 @@ class Literal(Attribute, LTLFormula):
             symbol_set = BaseSymbolSet
 
         if with_base_names:
-            return prefix + self.literals.values()[0].base_name
+            return prefix + next(iter(self.literals.values())).base_name
         else:
-            return prefix + self.literals.values()[0].base_name + '_' + prefix + str(self.literals.values()[0].index)
+            return prefix + next(iter(self.literals.values())).base_name + '_' + prefix + str(next(iter(self.literals.values())).index)
 
     def update(self, updated_subject):
         '''

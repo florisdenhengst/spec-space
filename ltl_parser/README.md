@@ -1,7 +1,7 @@
 # LTL parser for spec-space
 
 To install, run:
-pip2.7 install -e .
+pip install -e .
 
 To install deps, run:
 ./install_deps

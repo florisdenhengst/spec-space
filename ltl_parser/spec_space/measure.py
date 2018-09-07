@@ -9,6 +9,7 @@ Module for measuring LTL formulas.
 from spec_space.parser.parser import LTL_PARSER
 from spec_space.formula import TrueFormula, FalseFormula, Constant, Next, VarNext, Disjunction, Conjunction, UnaryFormula, Literal, BinaryFormula, Globally, Eventually;
 from copy import deepcopy
+#from pyeda.boolalg import boolfunc
 
 #f = LTL_PARSER.parse("G(tom & maso)")
 #f = LTL_PARSER.parse("F(G(tom & maso))")
@@ -40,7 +41,7 @@ def shift(f, n):
     if isinstance(f, Literal):
         f.index = f.index + n
         if (f.index > N):
-            return FalseFormula()
+            return FalseFormula() # FIXME: alternatively, leave this out and have a "soft" bound
     if isinstance(f, BinaryFormula):
         f.left_formula = shift(f.left_formula, n)
         f.right_formula = shift(f.right_formula, n)
