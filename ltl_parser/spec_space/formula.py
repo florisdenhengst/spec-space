@@ -247,7 +247,7 @@ class BinaryFormula(LTLFormula):
     '''
 
 
-    def __init__(self, left_formula, right_formula, merge_literals = True):
+    def __init__(self, left_formula, right_formula, merge_literals = False):
         '''
         doc
 

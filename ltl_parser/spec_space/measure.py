@@ -10,15 +10,17 @@ from spec_space.parser.parser import LTL_PARSER
 from spec_space.formula import TrueFormula, FalseFormula, Constant, Next, VarNext, Disjunction, Conjunction, UnaryFormula, Literal, BinaryFormula, Globally, Eventually;
 from copy import deepcopy
 from pyeda.boolalg.expr import expr, expr2dimacscnf
+from subprocess import call, check_output
 
 #f = LTL_PARSER.parse("G(tom & maso)")
 #f = LTL_PARSER.parse("F(G(tom & maso))")
 #f = LTL_PARSER.parse("((tom | maso) & (tom | maso))") # FIXME: this exposes the renaming issue. It should not all be considered the same vars.
 f = LTL_PARSER.parse("G(tom & X tom)")
+#f = LTL_PARSER.parse("G(tom & X tom)")
 #f = LTL_PARSER.parse("F(G(tom & X(maso)))")
 #f = LTL_PARSER.parse("a & false")
 #f = LTL_PARSER.parse("a & XXXXa")
-N = 3
+N = 1
 
 ''' Turn a formula into a conjunction with itself and a shifted copy of itself.'''
 def conj(f, n):
@@ -41,8 +43,8 @@ def disj(f, n):
 def shift(f, n):
     if isinstance(f, Literal):
         f.index = f.index + n
-        # if (f.index > N):
-        #     return FalseFormula() # FIXME: alternatively, leave this out and have a "soft" bound
+        if (f.index > N):
+             return FalseFormula() # FIXME: alternatively, leave this out and have a "soft" bound
     if isinstance(f, BinaryFormula):
         f.left_formula = shift(f.left_formula, n)
         f.right_formula = shift(f.right_formula, n)
@@ -113,9 +115,19 @@ def reduce(f):
 
     return f
 
-f = reduce(expand(f))
-print(f.generate(with_base_names=False, ignore_precedence=True))
+#f = reduce(expand(f))
+print(f)
+f = expand(f)
+print(f)
 #print(f.generate(with_base_names=False, ignore_precedence=True))
-#print(expr2dimacscnf(expr(f.generate(with_base_names=False, ignore_precedence=True))))
+#print(f.generate(with_base_names=False, ignore_precedence=True))
+# cnf = expr2dimacscnf(expr(f.generate(with_base_names=False, ignore_precedence=True)))
+# file = open('input.cnf', 'w')
+# file.write(str(cnf[1]))
+# file.close()
+
+# output = check_output(["bin/sharpSAT", "input.cnf"])
+# print(output)
+# FIXME: peel out the number
 # print(f.deps.assigned);
 # print(f.update_deps())

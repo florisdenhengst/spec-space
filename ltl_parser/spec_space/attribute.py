@@ -88,7 +88,7 @@ class Attribute(Subject):
     Observer.
     '''
 
-    def __init__(self, base_name, context = None):
+    def __init__(self, base_name, context = None, unique = False):
         '''
         Create a new attribute, initializing the Subject class structures and
         generating a new unique name.
@@ -105,10 +105,10 @@ class Attribute(Subject):
         self.merging_attribute = None
         self.base_name = base_name
         self.context = context
-        self.index = AttributeNamePool.get_unique_index(context, self.base_name)
-        # #return '%s_%d' % (base_name, obj_number)
-        #self.unique_name = AttributeNamePool.get_unique_name(context, self.base_name)
-
+        if (unique):
+            self.index = AttributeNamePool.get_unique_index(context, self.base_name)
+        else:
+            self.index = 0
 
     @property
     def unique_name(self):
