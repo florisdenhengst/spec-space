@@ -6,7 +6,7 @@ Module for measuring LTL formulas.
 @author: Marten Lohstroh
 '''
 
-from sys import argv
+from sys import argv, setrecursionlimit
 from copy import deepcopy
 from spec_space.parser.parser import LTL_PARSER
 from spec_space.formula import TrueFormula, FalseFormula, Constant, Next, \
@@ -20,58 +20,83 @@ expr1 = None
 expr2 = None
 N = None
 
-#def deepcopy(o):
-#    return o
+setrecursionlimit(1000000)
 
-''' Turn a formula into a conjunction with itself and a shifted copy of itself.'''
-def conj(f, n):
-    c = f
-    while (n < N):
-        n += 1
-        c = Conjunction(c, shift(deepcopy(f), n), True)
+# ''' Turn a formula into a conjunction with itself and a shifted copy of itself.'''
+# def conj(f, n):
+#     c = f
+#     while (n < N):
+#         n += 1
+#         c = Conjunction(c, shift(deepcopy(f), n), True)
 
-    return c
+#     return c
 
-def disj(f, n):
-    d = f
-    while (n < N):
-        n += 1
-        d = Disjunction(d, shift(deepcopy(f), n), True)
+# def disj(f, n):
+#     d = f
+#     while (n < N):
+#         n += 1
+#         d = Disjunction(d, shift(deepcopy(f), n), True)
 
-    return d
+#     return d
 
-''' Shift all variable indices by one and return the formula. '''
-def shift(f, n):
-    if isinstance(f, Literal):
-        f.index = f.index + n
-        if (f.index > N):
-             return FalseFormula() # FIXME: alternatively, leave this out and have a "soft" bound
-    if isinstance(f, BinaryFormula):
-        f.left_formula = shift(f.left_formula, n)
-        f.right_formula = shift(f.right_formula, n)
+# ''' Shift all variable indices by one and return the formula. '''
+# def shift(f, n):
+#     if isinstance(f, Literal):
+        
+#         if (f.index + n > N):
+#              return FalseFormula() # FIXME: alternatively, leave this out and have a "soft" bound
+#     if isinstance(f, BinaryFormula):
+#         f.left_formula = shift(f.left_formula, n)
+#         f.right_formula = shift(f.right_formula, n)
 
-    if isinstance(f, UnaryFormula):
-        f.right_formula = shift(f.right_formula, n)
+#     if isinstance(f, UnaryFormula):
+#         f.right_formula = shift(f.right_formula, n)
 
-    return f
+#     return f
 
 ''' Expand LTL formula into a Boolean expression, observing time bound N. '''
-def expand(f):
+def expand(f, n):
+
+    if isinstance(f, Literal):
+        if (n > N):
+            return "false"
+            print("test")
+        else:
+            return f.generate(with_base_names=True) + "_" + str(n)
+
     if isinstance(f, BinaryFormula):
-        f.left_formula = expand(f.left_formula)
-        f.right_formula = expand(f.right_formula)
+        if isinstance(f, Conjunction):
+            return expand(f.left_formula, n) + " & " + expand(f.right_formula, n)
+        if isinstance(f, Disjunction):
+            return expand(f.left_formula, n)  + " | " + expand(f.right_formula, n)
+        else:
+            print("Error: unknown BinaryFormula")
+
     else:
         if isinstance(f, Globally):
-            f = conj(expand(f.right_formula), 0)
-
-        if isinstance(f, Eventually):
-            f = disj(expand(f.right_formula), 0)
-
-        if isinstance(f, Next) or isinstance(f, VarNext):
-            f = expand(shift(f.right_formula, 1))
-        # FIXME: add more temporal operators here
-
-    return f
+            conj = "true"
+            while (n <= N):
+                subtree = expand(f.right_formula, n)
+                if subtree == "false":
+                    return "false"
+                else:
+                    conj += " & " + subtree 
+                n += 1
+            return conj   
+        elif isinstance(f, Eventually):
+            disj = "false"
+            while (n <= N):
+                subtree = expand(f.right_formula, n)
+                if subtree == "false":
+                    continue
+                else:
+                    disj += " | " + subtree 
+                n += 1
+            return disj
+        elif isinstance(f, Next) or isinstance(f, VarNext):
+            return expand(f.right_formula, n+1)
+        else:
+            return expand(f.right_formula, n)
 
 ''' Apply Boolean reduction rules to formula. '''
 def reduce(f):
@@ -137,17 +162,17 @@ except Exception as e:
 if N == None or expr1 == None:
     help_exit()
 
-f1 = expand(expr1)
+f1 = expand(expr1, 0)
 #print(f1)
 # f = expand(f)
 # print(f)
-print(f1.generate(with_base_names=False, ignore_precedence=True))
+#print(f1) # .generate(with_base_names=False, ignore_precedence=True)
+#exit()
 #print(f.generate(with_base_names=False, ignore_precedence=True))
 
 #x = ""
-x = expr("((tom0) & (maso1)) | (tom1)")
-cnf = expr2dimacscnf(x.to_cnf())
-print(cnf[1])
+cnf = expr2dimacscnf(expr(f1).to_cnf())
+#print(cnf[1])
 file = open('input.cnf', 'w')
 file.write(str(cnf[1]))
 file.close()
