@@ -6,21 +6,22 @@ Module for measuring LTL formulas.
 @author: Marten Lohstroh
 '''
 
-from spec_space.parser.parser import LTL_PARSER
-from spec_space.formula import TrueFormula, FalseFormula, Constant, Next, VarNext, Disjunction, Conjunction, UnaryFormula, Literal, BinaryFormula, Globally, Eventually;
+from sys import argv
 from copy import deepcopy
+from spec_space.parser.parser import LTL_PARSER
+from spec_space.formula import TrueFormula, FalseFormula, Constant, Next, \
+        VarNext, Disjunction, Conjunction, UnaryFormula, Literal, \
+        BinaryFormula, Globally, Eventually;
 from pyeda.boolalg.expr import expr, expr2dimacscnf
 from subprocess import call, check_output
 
-#f = LTL_PARSER.parse("G(tom & maso)")
-#f = LTL_PARSER.parse("F(G(tom & maso))")
-#f = LTL_PARSER.parse("((tom | maso) & (tom | maso))") # FIXME: this exposes the renaming issue. It should not all be considered the same vars.
-f = LTL_PARSER.parse("G(tom & X tom)")
-#f = LTL_PARSER.parse("G(tom & X tom)")
-#f = LTL_PARSER.parse("F(G(tom & X(maso)))")
-#f = LTL_PARSER.parse("a & false")
-#f = LTL_PARSER.parse("a & XXXXa")
-N = 1
+
+expr1 = None
+expr2 = None
+N = None
+
+#def deepcopy(o):
+#    return o
 
 ''' Turn a formula into a conjunction with itself and a shifted copy of itself.'''
 def conj(f, n):
@@ -115,19 +116,54 @@ def reduce(f):
 
     return f
 
-#f = reduce(expand(f))
-print(f)
-f = expand(f)
-print(f)
-#print(f.generate(with_base_names=False, ignore_precedence=True))
-#print(f.generate(with_base_names=False, ignore_precedence=True))
-# cnf = expr2dimacscnf(expr(f.generate(with_base_names=False, ignore_precedence=True)))
-# file = open('input.cnf', 'w')
-# file.write(str(cnf[1]))
-# file.close()
+''' Print a help message and exit. '''
+def help_exit():
+    print("Usage: python measure.py [TIME_BOUND] LTL_EXPR1 [LTL_EXPR2]")
+    exit(1)
 
-# output = check_output(["bin/sharpSAT", "input.cnf"])
-# print(output)
+''' Read commandline arguments. '''
+try:
+    N = int(argv[1])
+except Exception as e:
+     help_exit()
+
+try:
+    expr1 = LTL_PARSER.parse(argv[2])
+    if len(argv) > 3:
+        expr2 = LTL_PARSER.parse(argv[3])
+except Exception as e:
+    help_exit()
+
+if N == None or expr1 == None:
+    help_exit()
+
+f1 = expand(expr1)
+#print(f1)
+# f = expand(f)
+# print(f)
+print(f1.generate(with_base_names=False, ignore_precedence=True))
+#print(f.generate(with_base_names=False, ignore_precedence=True))
+
+#x = ""
+x = expr("((tom0) & (maso1)) | (tom1)")
+cnf = expr2dimacscnf(x.to_cnf())
+print(cnf[1])
+file = open('input.cnf', 'w')
+file.write(str(cnf[1]))
+file.close()
+
+output = check_output(["bin/sharpSAT", "input.cnf"])
+print(output.decode('UTF-8'))
 # FIXME: peel out the number
 # print(f.deps.assigned);
 # print(f.update_deps())
+
+
+#f = LTL_PARSER.parse("G(tom & maso)")
+#f = LTL_PARSER.parse("F(G(tom & maso))")
+#f = LTL_PARSER.parse("((tom | maso) & (tom | maso))") # FIXME: this exposes the renaming issue. It should not all be considered the same vars.
+#f = LTL_PARSER.parse("G(tom & X tom)")
+#f = LTL_PARSER.parse("G(tom & X tom)")
+#f = LTL_PARSER.parse("F(G(tom & X(maso)))")
+#f = LTL_PARSER.parse("a & false")
+#f = LTL_PARSER.parse("a & XXXXa")
