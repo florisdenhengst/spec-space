@@ -78,3 +78,34 @@ class NusmvSymbolSet(object):
         'MUL' : r'*',
         'DIV' : r'/'
         }
+
+
+class PyEDASymbolSet(object):
+
+    symbols = {
+        'AND' : r'&',
+        'OR' : r'|',
+        'GLOBALLY' : r'G',
+        'EVENTUALLY' : r'F',
+        'NEXT' : r'X',
+        'VAR_NEXT' : r'next',
+        'UNTIL' : r'U',
+        'RELEASE' : r'V',
+        'WEAK_UNTIL' : r'W',
+        'IMPLICATION' : r'->',
+        'DOUBLE_IMPLICATION' : r'<->',
+        'EQUALITY' : r'=',
+        'NOT' : r'~',
+        'TRUE' : r'1',
+        'FALSE' : r'0',
+        'LPAREN' : '(',
+        'RPAREN' : ')',
+        'GE' : r'>',
+        'GEQ' : r'>=',
+        'LE' : r'<',
+        'LEQ' : r'<=',
+        'ADD' : r'+',
+        'SUB' : r'-',
+        'MUL' : r'*',
+        'DIV' : r'/'
+        }
