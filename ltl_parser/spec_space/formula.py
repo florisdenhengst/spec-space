@@ -264,6 +264,7 @@ class BinaryFormula(LTLFormula):
         self.right_formula = right_formula
 
         self.process_literals(merge_literals)
+        self.info = {}
 
     def update(self, updated_subject):
         '''

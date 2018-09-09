@@ -20,7 +20,7 @@ expr1 = None
 expr2 = None
 N = None
 
-setrecursionlimit(1000000)
+setrecursionlimit(100000)
 
 # ''' Turn a formula into a conjunction with itself and a shifted copy of itself.'''
 # def conj(f, n):
@@ -54,92 +54,89 @@ setrecursionlimit(1000000)
 
 #     return f
 
-''' Expand LTL formula into a Boolean expression, observing time bound N. '''
+''' Expand LTL formula into a Boolean expression, observing time bound N. 
+This function returns a tuple holding a string representation of the expansion
+and a set containing all the atomic propositions featured in the expression. '''
 def expand(f, n):
 
     if isinstance(f, Literal):
         if (n > N):
-            return "false"
-            print("test")
+            return ["false", set([])]
+            
         else:
-            return f.generate(with_base_names=True) + "_" + str(n)
+            name = f.generate(with_base_names=True) + "_" + str(n)
+            return [name, set([name])]
 
     if isinstance(f, BinaryFormula):
-        if isinstance(f, Conjunction):
-            return expand(f.left_formula, n) + " & " + expand(f.right_formula, n)
-        if isinstance(f, Disjunction):
-            return expand(f.left_formula, n)  + " | " + expand(f.right_formula, n)
-        else:
-            print("Error: unknown BinaryFormula")
+        
+        l, ldeps = expand(f.left_formula, n)
+        r, rdeps = expand(f.right_formula, n)
+        f.info['ldeps'] = ldeps
+        f.info['rdeps'] = rdeps
 
+        if isinstance(f, Conjunction):    
+            if (l == "false" or r == "false"):
+                f.info['expr'] = "false"
+                return [f.info['expr'], set([])]    
+            else:
+                f.info['expr'] = "(" + l + " & " + r + ")"
+                return [f.info['expr'], set(ldeps.union(rdeps))]
+        elif isinstance(f, Disjunction):
+            if (l == "false" and r == "false"):
+                f.info['expr'] = "false"
+                return [f.info['expr'], set([])]
+            elif (l == "false"):
+                f.info['expr'] = r
+                return [f.info['expr'], rdeps]    
+            elif (r == "false"):
+                f.info['expr'] = l
+                return [f.info['expr'], ldeps]
+            else:
+                f.info['expr'] = "(" + l + " | " + r + ")"
+                return [f.info['expr'], set(ldeps.union(rdeps))]
+        elif isinstance(f, Implication):
+            if (l == "false" or r == "true"):
+                f.info['expr'] = "true"
+                return [f.info['expr'], set([])]
+            if (l == "true"):
+                f.info['expr'] = r
+                return [f.info['expr'], rdeps]
+            if (r == "false"):
+                f.info['expr'] = "not " + l
+                return [f.info['expr'], ldeps]
+            else:
+                f.info['expr'] = "(not" + l + " | " + r + ")"
+                return [f.info['expr'], set(ldeps.union(rdeps))]
+        else:
+            throw("Error: cannot expand unsupported BinaryFormula!")
     else:
         if isinstance(f, Globally):
             conj = "true"
+            deps = set([])
             while (n <= N):
-                subtree = expand(f.right_formula, n)
-                if subtree == "false":
-                    return "false"
+                e, d = expand(f.right_formula, n)
+                if e == "false":
+                    return ["false", set([])]
                 else:
-                    conj += " & " + subtree 
+                    conj += " & " + e
+                    deps = deps.union(d)
                 n += 1
-            return conj   
+                
+            return [conj, deps]  
         elif isinstance(f, Eventually):
             disj = "false"
+            deps = set([])
             while (n <= N):
-                subtree = expand(f.right_formula, n)
-                if subtree == "false":
-                    continue
-                else:
-                    disj += " | " + subtree 
+                e, d = expand(f.right_formula, n)
+                if e != "false":
+                    disj += " | " + e 
+                    deps = deps.union(d)
                 n += 1
-            return disj
+            return [disj, deps]
         elif isinstance(f, Next) or isinstance(f, VarNext):
             return expand(f.right_formula, n+1)
         else:
             return expand(f.right_formula, n)
-
-''' Apply Boolean reduction rules to formula. '''
-def reduce(f):
-    if isinstance(f, BinaryFormula):
-        f.left_formula = reduce(f.left_formula)
-        f.right_formula = reduce(f.right_formula)
-
-        if isinstance(f, Conjunction):
-            if isinstance(f.left_formula, FalseFormula) \
-            or isinstance(f.right_formula, FalseFormula):
-                return FalseFormula()
-            if isinstance(f.left_formula, TrueFormula):
-                return f.right_formula
-            if isinstance(f.right_formula, TrueFormula):
-                return f.left_formula
-            if f.left_formula == f.right_formula: # FIXME: this won't work. NuSVM?
-                return f.left_formula
-            # FIXME:
-            # A and ~A = 0
-        if isinstance(f, Disjunction):
-            if isinstance(f.left_formula, FalseFormula):
-                if isinstance(f.right_formula, FalseFormula):
-                    return FalseFormula()
-                else:
-                    return f.right_formula
-            else:
-                if isinstance(f.right_formula, FalseFormula):
-                    return f.left_formula
-            if (isinstance(f.left_formula, TrueFormula) \
-            or isinstance(f.right_formula, TrueFormula)):
-                return TrueFormula()
-            if f.left_formula == f.right_formula: # FIXME: this won't work. NuSVM?
-                return f.left_formula
-            # FIXME:
-            # A or ~A = 1
-
-    #FIXME:
-    # ~~A = A
-    # A or ~AB = A or B
-    if isinstance(f, UnaryFormula):
-        reduce(f.right_formula)
-
-    return f
 
 ''' Print a help message and exit. '''
 def help_exit():
@@ -162,7 +159,10 @@ except Exception as e:
 if N == None or expr1 == None:
     help_exit()
 
-f1 = expand(expr1, 0)
+f1, d1 = expand(expr1, 0)
+print(d1)
+print(f1)
+exit()
 #print(f1)
 # f = expand(f)
 # print(f)
