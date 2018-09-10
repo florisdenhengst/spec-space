@@ -102,7 +102,8 @@ def expand(f, n=0): # FIXME: separate the dependency analysis from the expansion
             
         else:
             name = f.generate(with_base_names=True)
-            return [name + str(n), DepTracker(name, set([n]))]
+            f.info['deps'] = DepTracker(name, set([n]))
+            return [name + str(n), f.info['deps']]
 
     if isinstance(f, BinaryFormula):
         
@@ -154,7 +155,7 @@ def expand(f, n=0): # FIXME: separate the dependency analysis from the expansion
                     conj += " " + lnd + " " + e
                     deps = deps.union(d)
                 n += 1
-            f.info['deps'] = deps    
+            f.info['deps'] = deps
             return [conj, deps]  
         elif isinstance(f, Eventually):
             disj = fls
@@ -261,16 +262,16 @@ def traverse(form, func, arg=None):
         return func(form)
 
 
-def traverse2(form, func, arg=None):
-    if isinstance(form, BinaryFormula):
-        traverse(form.left_formula, func, arg)
-        traverse(form.right_formula, func, arg)
-    elif isinstance(form, UnaryFormula):
-        traverse(form.right_formula, func)
-    if arg != None:
-        return func(form, arg)
-    else:
-        return func(form)
+# def traverse2(form, func, arg=None):
+#     if isinstance(form, BinaryFormula):
+#         traverse(form.left_formula, func, arg)
+#         traverse(form.right_formula, func, arg)
+#     elif isinstance(form, UnaryFormula):
+#         traverse(form.right_formula, func)
+#     if arg != None:
+#         return func(form, arg)
+#     else:
+#         return func(form)
 
 
 
@@ -320,7 +321,13 @@ def measure(f, n=0):
         return measure(f, n+1)
 
     if isinstance(f, Globally):
-        if f.info['deps'].timeindependent():
+        if isinstance(f, BinaryFormula):
+            deps = f.right_formula.info['ldeps'].union(f.right_formula.info['rdeps'])
+        if isinstance(f, UnaryFormula):
+            deps = f.right_formula.info['deps']
+        else:
+            throw("Error")
+        if deps.timeindependent():
             print("here")
             m = 1
             for i in range(0, N):
@@ -328,23 +335,27 @@ def measure(f, n=0):
             return m
         else:
             print(f.info['deps'].literals)
+            # FIXME: go to the model counter
             pass
 
-
-    # if isinstance(f, BinaryFormula):
-    #     if f.info['ldeps'].isdisjoint(f.info['ldeps']):
-    #         # indep
-    #         if isinstance(f, Conjunction):
-    #             pass
-    #         if isinstance(f, Disjunction):
-    #             pass
-    #         else:
-    #             #error?
-    #     else:
-    #         return count(f.info['expr'])
-    # return m
-
-
+    if isinstance(f, Eventually):
+        if isinstance(f, BinaryFormula):
+            deps = f.right_formula.info['ldeps'].union(f.right_formula.info['rdeps'])
+        if isinstance(f, UnaryFormula):
+            deps = f.right_formula.info['deps']
+        else:
+            throw("Error")
+        if deps.timeindependent():
+            print("here")
+            m = 1
+            for i in range(0, N):
+                m *= 1 - measure(f.right_formula, n+i) # we will easily move past N here.
+            return 1-m
+        else:
+            print(f.info['deps'].literals)
+            # FIXME: go to the model counter
+            pass
+            
 ''' Main '''
 init()
 #FIXME: run input expression through PyEDA for simplification first
