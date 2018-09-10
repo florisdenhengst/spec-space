@@ -313,17 +313,21 @@ def measure(f, n=0):
             return 1 - (1-measure(f.right_formula, n)) * (1-measure(f.left_formula, n))
         else:
             num_vars = f.info['ldeps'].union(f.info['rdeps']).count()   # FIXME: could ldeps or rdeps be None?
-            num_asrs = count(f.info['expr'])
+            num_asrs = count(f.info['expr']) # using a cached version; should probably do this on the fly...?
             return num_asrs / 2**num_vars
 
     if isinstance(f, Next):
         return measure(f, n+1)
 
     if isinstance(f, Globally):
-         if f.info['deps'].timeindependent():
-             m = 0
-             # for 
-             # measure()
+        if f.info['deps'].timeindependent():
+            m = 0
+            for i in range(0, N):
+                m *= measure(f.right_formula, n+i) # we will easily move past N here.
+            return m
+        else:
+            pass
+
 
     # if isinstance(f, BinaryFormula):
     #     if f.info['ldeps'].isdisjoint(f.info['ldeps']):
