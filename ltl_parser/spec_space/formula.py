@@ -61,6 +61,7 @@ class LTLFormula(Observer):
         LTLFormula constructor
         '''
         self.literals = {}
+        self.info = {}
 
     def generate(self, symbol_set=None, with_base_names=False, ignore_precedence=False, prefix=''):
         '''
@@ -264,7 +265,6 @@ class BinaryFormula(LTLFormula):
         self.right_formula = right_formula
 
         self.process_literals(merge_literals)
-        self.info = {}
 
     def update(self, updated_subject):
         '''

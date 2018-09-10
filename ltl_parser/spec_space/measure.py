@@ -31,6 +31,61 @@ neg = target.symbols['NOT']
 
 setrecursionlimit(100000)
 
+''' Maps atomic propositions to sets of time indexes. '''
+class DepTracker:
+
+    def __init__(self, lit=None, n=None):
+        self.literals = {}
+        if lit != None and n != None:
+            self.add(lit, n)
+
+    def add(self, literal, indexes):
+        if self.literals.get(literal) == None:
+            self.literals[literal] = indexes
+        else:
+            self.literals[literal] = self.literals[literal].union(indexes)
+
+    def union(self, other):
+        new = DepTracker()
+        if other == None:
+            return new
+        for k,v in other.literals.items():
+            if self.literals.get(k) == None:
+                new.add(k, v)
+            else:
+                new.add(k, self.literals[k].union(v))
+        for k,v in self.literals.items():
+            if other.literals.get(k) == None:
+                new.add(k, v)
+
+        return new
+
+    def isdisjoint(self, other):
+        if len(self.literals) <= len(other.literals):
+            mine = self.literals
+            their = other.literals
+        else:
+            mine = other.literals
+            their = self.literals
+
+        for k,v in mine.items():
+            if their.get(k) != None:
+                return False
+        return True
+
+    def count(self):
+        cnt = 0
+        for v in self.literals.values():
+            for t in v:
+                cnt += 1
+        return cnt
+
+    def timeindependent(self):
+        for v in self.literals.values():
+            if len(v) > 1:
+                return False
+        return True
+
 ''' Expand a given LTL formula into a Boolean expression, observing time bound N. 
     This function returns a tuple. The first item in the returned tuple is a 
     string representation of the expansion; the second is a set containing all 
@@ -39,15 +94,15 @@ setrecursionlimit(100000)
     it sets the nodes' info['expr'], info['ldeps'], and info['rdeps'] fields. 
     Some basic constant folding is done to eradicate trivial bloat in the 
     generated expression. '''
-def expand(f, n=0):
+def expand(f, n=0): # FIXME: separate the dependency analysis from the expansion
 
     if isinstance(f, Literal):
         if (n > N):
-            return ["false", set([])]
+            return ["false", None]
             
         else:
-            name = "(" + f.generate(with_base_names=True) + str(n) + ")"
-            return [name, set([name])]
+            name = f.generate(with_base_names=True)
+            return [name + str(n), DepTracker(name, set([n]))]
 
     if isinstance(f, BinaryFormula):
         
@@ -59,7 +114,7 @@ def expand(f, n=0):
         if isinstance(f, Conjunction):    
             if (l == fls or r == fls):
                 f.info['expr'] = fls
-                return [f.info['expr'], set([])]
+                return [f.info['expr'], None]
             elif (l == tru):
                 f.info['expr'] = r
                 return [f.info['expr'], rdeps]
@@ -68,14 +123,14 @@ def expand(f, n=0):
                 return [f.info['expr'], ldeps]
             elif (r == tru and l == tru):
                 f.info['expr'] = true
-                return [f.info['expr'], set([])]
+                return [f.info['expr'], None]
             else:
                 f.info['expr'] = "(" + l + " " + lnd + " " + r + ")"
-                return [f.info['expr'], set(ldeps.union(rdeps))]
+                return [f.info['expr'], ldeps.union(rdeps)] # FIXME: could ldeps be None?
         elif isinstance(f, Disjunction):
             if (l == fls and r == fls):
                 f.info['expr'] = fls
-                return [f.info['expr'], set([])]
+                return [f.info['expr'], None]
             elif (l == fls):
                 f.info['expr'] = r
                 return [f.info['expr'], rdeps]    
@@ -84,45 +139,48 @@ def expand(f, n=0):
                 return [f.info['expr'], ldeps]
             else:
                 f.info['expr'] = "(" + l + " | " + r + ")"
-                return [f.info['expr'], set(ldeps.union(rdeps))]
+                return [f.info['expr'], ldeps.union(rdeps)]
         else:
             throw("Error: cannot expand unsupported BinaryFormula!")
     else:
         if isinstance(f, Globally):
             conj = tru
-            deps = set([])
+            deps = DepTracker()
             while (n <= N):
                 e, d = expand(f.right_formula, n)
                 if e == fls:
-                    return [fls, set([])]
+                    return [fls, None]
                 else:
                     conj += " " + lnd + " " + e
                     deps = deps.union(d)
                 n += 1
-                
+            f.info['deps'] = deps    
             return [conj, deps]  
         elif isinstance(f, Eventually):
             disj = fls
-            deps = set([])
+            deps = DepTracker()
             while (n <= N):
                 e, d = expand(f.right_formula, n)
                 if e != fls:
                     disj += " " + lor + " " + e 
                     deps = deps.union(d)
                 n += 1
+            f.info['deps'] = deps
             return [disj, deps]
         elif isinstance(f, Next) or isinstance(f, VarNext):
             return expand(f.right_formula, n+1)
         elif isinstance(f, Negation):
             e, d = expand(f.right_formula, n)
             if e == fls:
-                return [tru, set([])]
+                return [tru, None]
             elif e == fls:
-                return [fls, set([])]
+                return [fls, None]
             else:
                 return [neg + e, d]
         else:
-            return expand(f.right_formula, n)
+            pass
+            #return expand(f.right_formula, n)
+
 
 ''' Print a help message and exit. '''
 def help_exit():
@@ -150,15 +208,17 @@ def init():
 ''' Pass the given Boolean formula to SharpSAT. 
     Return the number of satisfying models. '''
 def count(formula):
+
     cnf = expr(formula).to_cnf()
-    '''false'''
+    #print(formula.generate())
+    ''' False '''
     if str(cnf) == "0":
         return 0
-    '''true'''
+    ''' True '''
     if str(cnf) == "1":
         return 1
     else:
-        '''sat?'''
+        ''' Sat? '''
         file = open('input.cnf', 'w')
         file.write(str(expr2dimacscnf(cnf)[1]))
         file.close()
@@ -189,28 +249,84 @@ def simplify(f):
     return f
 
 ''' Recursively apply given function to each node in the AST. '''
-def traverse(form, func):
+def traverse(form, func, arg=None):
     
     if isinstance(form, BinaryFormula):
         form.left_formula = traverse(form.left_formula, func)
         form.right_formula = traverse(form.right_formula, func)
     elif isinstance(form, UnaryFormula):
         form.right_formula = traverse(form.right_formula, func)
+    if arg != None:
+        return func(form, arg)
+    else:
+        return func(form)
 
-    return func(form)
 
-def measure(e1, e2=None):
-    e1 = traverse(e1, simplify)
-    print(e1.generate(with_base_names=False, ignore_precedence=True))
+''' Changes the magnitude field. '''
+def measure(f):
+    print(f.generate(with_base_names=False))
     
-    #traverse(e1, )...
-    print(expand(e1)[0])
+    if isinstance(f, TrueFormula):
+        return 1
 
+    if isinstance(f, FalseFormula):
+        return 0
+
+    if isinstance(f, Literal):
+        return 0.5
+
+    if isinstance(f, Negation):
+        return 1 - measure(f.right_formula)
+
+    if isinstance(f, Conjunction):
+        print(f.info['ldeps'].literals)
+        print(f.info['rdeps'].literals)
+        if f.info['ldeps'].isdisjoint(f.info['rdeps']):
+            print("disjoint")
+            return measure(f.right_formula) * measure(f.left_formula)
+        else:
+            print("overlapping")
+            num_vars = f.info['ldeps'].union(f.info['rdeps']).count()   # FIXME: could ldeps or rdeps be None?
+            num_asrs = count(f)
+            return num_asrs / 2**num_vars
+
+    if isinstance(f, Disjunction):
+        print(f.info['ldeps'].literals)
+        print(f.info['rdeps'].literals)
+
+        if f.info['ldeps'].isdisjoint(f.info['rdeps']):
+            return 1 - (1-measure(f.right_formula)) * (1-measure(f.left_formula))
+        else:
+            num_vars = f.info['ldeps'].union(f.info['rdeps']).count()   # FIXME: could ldeps or rdeps be None?
+            num_asrs = count(f)
+            return num_asrs / 2**num_vars
+
+    # if isinstance(f, Globally):
+    #     if f.info['deps'].timeindependent():
+    #         m = 0
+    #         for 
+    #         measure()
+
+    # if isinstance(f, BinaryFormula):
+    #     if f.info['ldeps'].isdisjoint(f.info['ldeps']):
+    #         # indep
+    #         if isinstance(f, Conjunction):
+    #             pass
+    #         if isinstance(f, Disjunction):
+    #             pass
+    #         else:
+    #             #error?
+    #     else:
+    #         return count(f.info['expr'])
+    # return m
 
 
 ''' Main '''
 init()
-measure(expr1, expr2)
+#FIXME: run input expression through PyEDA for simplification first
+# 
+expand(traverse(expr1, simplify))
+print(measure(expr1))
 
 # f1, d1 = expand(expr1, 0)
 # print(expr1.right_formula.info['ldeps'].isdisjoint(expr1.right_formula.info['rdeps']))
