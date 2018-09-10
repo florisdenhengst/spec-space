@@ -287,7 +287,7 @@ def measure(f):
         else:
             print("overlapping")
             num_vars = f.info['ldeps'].union(f.info['rdeps']).count()   # FIXME: could ldeps or rdeps be None?
-            num_asrs = count(f)
+            num_asrs = count(f.info['expr'])
             return num_asrs / 2**num_vars
 
     if isinstance(f, Disjunction):
@@ -298,7 +298,7 @@ def measure(f):
             return 1 - (1-measure(f.right_formula)) * (1-measure(f.left_formula))
         else:
             num_vars = f.info['ldeps'].union(f.info['rdeps']).count()   # FIXME: could ldeps or rdeps be None?
-            num_asrs = count(f)
+            num_asrs = count(f.info['expr'])
             return num_asrs / 2**num_vars
 
     # if isinstance(f, Globally):
