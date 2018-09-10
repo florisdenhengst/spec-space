@@ -86,6 +86,19 @@ class DepTracker:
                 return False
         return True
 
+    def shift(self, n):
+        for k, v in self.literals.items():
+            shifted = set([])
+            for t in v.values():
+                shifted.add(v+n)    
+            self.literals[k] = shifted
+        return self
+
+    def saturate(self):
+        for k, v in self.literals.items():
+            self.literals[k] = set(range(min(v), N))
+        return self
+
 ''' Expand a given LTL formula into a Boolean expression, observing time bound N. 
     This function returns a tuple. The first item in the returned tuple is a 
     string representation of the expansion; the second is a set containing all 
@@ -142,7 +155,7 @@ def expand(f, n=0): # FIXME: separate the dependency analysis from the expansion
                 f.info['expr'] = "(" + l + " | " + r + ")"
                 return [f.info['expr'], ldeps.union(rdeps)]
         else:
-            throw("Error: cannot expand unsupported BinaryFormula!")
+            raise Exception("Error: cannot expand unsupported BinaryFormula!")
     else:
         if isinstance(f, Globally):
             conj = tru
@@ -228,6 +241,7 @@ def count(formula):
         m = re.search(r"# solutions \n([0-9]+)\n# END", output.decode('UTF-8'))
         return int(m.group(1))
 
+''' Traversal function that reduces implications, double implications. '''
 def simplify(f):
 
     if isinstance(f, BinaryFormula):
@@ -249,33 +263,41 @@ def simplify(f):
     return f
 
 ''' Recursively apply given function to each node in the AST. '''
-def traverse(form, func, arg=None):
+def traverse(form, func):
     
     if isinstance(form, BinaryFormula):
         form.left_formula = traverse(form.left_formula, func)
         form.right_formula = traverse(form.right_formula, func)
     elif isinstance(form, UnaryFormula):
         form.right_formula = traverse(form.right_formula, func)
-    if arg != None:
-        return func(form, arg)
+    
+    return func(form)
+
+''' Traversal function that computes AST nodes' dependencies. 
+    Updates the info['deps'] field for all nodes, and the 
+    info['lrdisjoint'] for bifurcating nodes. '''
+def compute_deps(f):
+
+    if isinstance(f, Literal):
+        name = f.generate(with_base_names=True)
+        f.info['deps'] = DepTracker(name, set([0]))
+    elif isinstance(f, BinaryFormula):
+        ldeps = f.left_formula['deps']
+        rdeps = f.right_formula['deps']
+        f.info['deps'] = ldeps.union(rdeps)
+        f.info['lrdisjoint'] = ldeps.isdisjoint(rdeps)
     else:
-        return func(form)
+        if isinstance(f, Globally) or isinstance(f, Eventually):
+            f.info['deps'] = f.right_formula.info['deps'].saturate()
+            print("HERE!!")
+        elif isinstance(f, Next) or isinstance(f, VarNext):
+            f.info['deps'] = f.right_formula.info['deps'].shift(1)
+        else:
+            raise Exception("Unsupported AST node: " + type(f).__name__)
+    
+    return f
 
-
-# def traverse2(form, func, arg=None):
-#     if isinstance(form, BinaryFormula):
-#         traverse(form.left_formula, func, arg)
-#         traverse(form.right_formula, func, arg)
-#     elif isinstance(form, UnaryFormula):
-#         traverse(form.right_formula, func)
-#     if arg != None:
-#         return func(form, arg)
-#     else:
-#         return func(form)
-
-
-
-''' Changes the magnitude field. '''
+''' Measure the given formula. '''
 def measure(f, n=0):
     print(f.generate(with_base_names=False))
     
@@ -295,25 +317,22 @@ def measure(f, n=0):
         return 1 - measure(f.right_formula, n)
 
     if isinstance(f, Conjunction):
-        print(f.info['ldeps'].literals)
-        print(f.info['rdeps'].literals)
-        if f.info['ldeps'].isdisjoint(f.info['rdeps']):
+        if f.info['lrdisjoint']:
             print("disjoint")
             return measure(f.right_formula, n) * measure(f.left_formula, n)
         else:
             print("overlapping")
-            num_vars = f.info['ldeps'].union(f.info['rdeps']).count()   # FIXME: could ldeps or rdeps be None?
+            num_vars = f.info['deps'].count()   # FIXME: could ldeps or rdeps be None?
             num_asrs = count(f.info['expr']) # using a cached version; should probably do this on the fly...?
             return num_asrs / 2**num_vars
 
     if isinstance(f, Disjunction):
-        print(f.info['ldeps'].literals)
-        print(f.info['rdeps'].literals)
-
-        if f.info['ldeps'].isdisjoint(f.info['rdeps']):
+        if f.info['lrdisjoint']:
+            print("disjoint")
             return 1 - (1-measure(f.right_formula, n)) * (1-measure(f.left_formula, n))
         else:
-            num_vars = f.info['ldeps'].union(f.info['rdeps']).count()   # FIXME: could ldeps or rdeps be None?
+            print("overlapping")
+            num_vars = f.info['deps'].count()   # FIXME: could ldeps or rdeps be None?
             num_asrs = count(f.info['expr']) # using a cached version; should probably do this on the fly...?
             return num_asrs / 2**num_vars
 
@@ -321,12 +340,8 @@ def measure(f, n=0):
         return measure(f, n+1)
 
     if isinstance(f, Globally):
-        if isinstance(f, BinaryFormula):
-            deps = f.right_formula.info['ldeps'].union(f.right_formula.info['rdeps'])
-        if isinstance(f, UnaryFormula):
-            deps = f.right_formula.info['deps']
-        else:
-            throw("Error")
+        deps = f.right_formula.info['deps']
+
         if deps.timeindependent():
             print("here")
             m = 1
@@ -339,12 +354,8 @@ def measure(f, n=0):
             pass
 
     if isinstance(f, Eventually):
-        if isinstance(f, BinaryFormula):
-            deps = f.right_formula.info['ldeps'].union(f.right_formula.info['rdeps'])
-        if isinstance(f, UnaryFormula):
-            deps = f.right_formula.info['deps']
-        else:
-            throw("Error")
+        deps = f.right_formula.info['deps']
+        
         if deps.timeindependent():
             print("here")
             m = 1
@@ -355,12 +366,13 @@ def measure(f, n=0):
             print(f.info['deps'].literals)
             # FIXME: go to the model counter
             pass
-            
+
 ''' Main '''
 init()
 #FIXME: run input expression through PyEDA for simplification first
 # 
-expand(traverse(expr1, simplify))
+traverse(expr1, simplify)
+traverse(expr1, compute_deps)
 print(measure(expr1))
 
 # f1, d1 = expand(expr1, 0)
