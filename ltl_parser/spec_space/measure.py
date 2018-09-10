@@ -261,8 +261,21 @@ def traverse(form, func, arg=None):
         return func(form)
 
 
+def traverse2(form, func, arg=None):
+    if isinstance(form, BinaryFormula):
+        traverse(form.left_formula, func, arg)
+        traverse(form.right_formula, func, arg)
+    elif isinstance(form, UnaryFormula):
+        traverse(form.right_formula, func)
+    if arg != None:
+        return func(form, arg)
+    else:
+        return func(form)
+
+
+
 ''' Changes the magnitude field. '''
-def measure(f):
+def measure(f, n=0):
     print(f.generate(with_base_names=False))
     
     if isinstance(f, TrueFormula):
@@ -272,21 +285,24 @@ def measure(f):
         return 0
 
     if isinstance(f, Literal):
-        return 0.5
+        if (n <= N):
+            return 0.5
+        else:
+            return 0
 
     if isinstance(f, Negation):
-        return 1 - measure(f.right_formula)
+        return 1 - measure(f.right_formula, n)
 
     if isinstance(f, Conjunction):
         print(f.info['ldeps'].literals)
         print(f.info['rdeps'].literals)
         if f.info['ldeps'].isdisjoint(f.info['rdeps']):
             print("disjoint")
-            return measure(f.right_formula) * measure(f.left_formula)
+            return measure(f.right_formula, n) * measure(f.left_formula, n)
         else:
             print("overlapping")
             num_vars = f.info['ldeps'].union(f.info['rdeps']).count()   # FIXME: could ldeps or rdeps be None?
-            num_asrs = count(f.info['expr'])
+            num_asrs = count(f.info['expr']) # using a cached version; should probably do this on the fly...?
             return num_asrs / 2**num_vars
 
     if isinstance(f, Disjunction):
@@ -294,17 +310,20 @@ def measure(f):
         print(f.info['rdeps'].literals)
 
         if f.info['ldeps'].isdisjoint(f.info['rdeps']):
-            return 1 - (1-measure(f.right_formula)) * (1-measure(f.left_formula))
+            return 1 - (1-measure(f.right_formula, n)) * (1-measure(f.left_formula, n))
         else:
             num_vars = f.info['ldeps'].union(f.info['rdeps']).count()   # FIXME: could ldeps or rdeps be None?
             num_asrs = count(f.info['expr'])
             return num_asrs / 2**num_vars
 
-    # if isinstance(f, Globally):
-    #     if f.info['deps'].timeindependent():
-    #         m = 0
-    #         for 
-    #         measure()
+    if isinstance(f, Next):
+        return measure(f, n+1)
+
+    if isinstance(f, Globally):
+         if f.info['deps'].timeindependent():
+             m = 0
+             # for 
+             # measure()
 
     # if isinstance(f, BinaryFormula):
     #     if f.info['ldeps'].isdisjoint(f.info['ldeps']):
