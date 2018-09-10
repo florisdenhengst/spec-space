@@ -210,7 +210,7 @@ def init():
 def count(formula):
 
     cnf = expr(formula).to_cnf()
-    #print(formula.generate())
+    print(cnf)
     ''' False '''
     if str(cnf) == "0":
         return 0
@@ -225,8 +225,7 @@ def count(formula):
 
         output = check_output(["bin/sharpSAT", "input.cnf"])
         m = re.search(r"# solutions \n([0-9]+)\n# END", output.decode('UTF-8'))
-        return m.group(1)
-
+        return int(m.group(1))
 
 def simplify(f):
 
