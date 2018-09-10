@@ -321,11 +321,13 @@ def measure(f, n=0):
 
     if isinstance(f, Globally):
         if f.info['deps'].timeindependent():
-            m = 0
+            print("here")
+            m = 1
             for i in range(0, N):
                 m *= measure(f.right_formula, n+i) # we will easily move past N here.
             return m
         else:
+            print(f.info['deps'].literals)
             pass
 
 
