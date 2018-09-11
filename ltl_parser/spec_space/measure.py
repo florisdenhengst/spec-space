@@ -90,9 +90,9 @@ class DepTracker:
         new = DepTracker()
         for k, v in self.literals.items():
             indexes = set([])
-            for t in v.values():
-                if (v+n <= N):
-                    indexes.add(v+n)    
+            for t in v:
+                if (t+n <= N):
+                    indexes.add(t+n)    
             new.add(k, indexes)
         return new
 
@@ -261,8 +261,8 @@ def compute_deps(f):
         name = f.generate(with_base_names=True)
         f.info['deps'] = DepTracker(name, set([0]))
     elif isinstance(f, BinaryFormula):
-        ldeps = f.left_formula['deps']
-        rdeps = f.right_formula['deps']
+        ldeps = f.left_formula.info['deps']
+        rdeps = f.right_formula.info['deps']
         f.info['deps'] = ldeps.union(rdeps)
         f.info['lrdisjoint'] = ldeps.isdisjoint(rdeps)
     else:
@@ -315,7 +315,7 @@ def measure(f, n=0):
             return num_asrs / 2**num_vars
 
     if isinstance(f, Next):
-        return measure(f, n+1)
+        return measure(f.right_formula, n+1)
 
     if isinstance(f, Globally):
         deps = f.right_formula.info['deps']
