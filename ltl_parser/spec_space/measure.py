@@ -13,7 +13,8 @@ from spec_space.formula import TrueFormula, FalseFormula, Constant, Next, \
         VarNext, Disjunction, Conjunction, UnaryFormula, Literal, \
         BinaryFormula, Globally, Eventually, DoubleImplication, Implication, \
         Negation;
-from pyeda.boolalg.expr import expr, expr2dimacscnf
+from pyeda.boolalg.expr import expr, DimacsCNF
+from pyeda.inter import expr2truthtable
 from subprocess import call, check_output
 from spec_space.symbol_sets import PyEDASymbolSet
 
@@ -200,10 +201,9 @@ def init():
 
 ''' Pass the given Boolean formula to SharpSAT. 
     Return the number of satisfying models. '''
-def count(formula):
-    print(formula)
+def sat_measure(formula):
     cnf = expr(formula).to_cnf()
-    print(cnf)
+    
     ''' False '''
     if str(cnf) == "0":
         return 0
@@ -213,12 +213,13 @@ def count(formula):
     else:
         ''' Sat? '''
         file = open('input.cnf', 'w')
-        file.write(str(expr2dimacscnf(cnf)[1]))
+        litmap, nvars, clauses = cnf.encode_cnf()
+        file.write(str(DimacsCNF(nvars, clauses)))
         file.close()
 
         output = check_output(["bin/sharpSAT", "input.cnf"])
         m = re.search(r"# solutions \n([0-9]+)\n# END", output.decode('UTF-8'))
-        return int(m.group(1))
+        return int(m.group(1))/2**nvars
 
 ''' Traversal function that reduces implications, double implications. '''
 def simplify(f):
@@ -300,9 +301,7 @@ def measure(f, n=0):
             return measure(f.right_formula, n) * measure(f.left_formula, n)
         else:
             print("overlapping")
-            num_vars = f.info['deps'].count()   # FIXME: could ldeps or rdeps be None?
-            num_asrs = count(expand(f, n)) # using a cached version; should probably do this on the fly...?
-            return num_asrs / 2**num_vars
+            return sat_measure(expand(f, n))
 
     if isinstance(f, Disjunction):
         if f.info['lrdisjoint']:
@@ -310,9 +309,7 @@ def measure(f, n=0):
             return 1 - (1-measure(f.right_formula, n)) * (1-measure(f.left_formula, n))
         else:
             print("overlapping")
-            num_vars = f.info['deps'].count()   # FIXME: could ldeps or rdeps be None?
-            num_asrs = count(expand(f, n)) # using a cached version; should probably do this on the fly...?
-            return num_asrs / 2**num_vars
+            return sat_measure(expand(f, n))
 
     if isinstance(f, Next):
         return measure(f.right_formula, n+1)
@@ -328,7 +325,7 @@ def measure(f, n=0):
             return m
         else:
             num_vars = f.info['deps'].count()
-            return count(expand(f))/(2**num_vars)
+            return sat_measure(expand(f, n))
 
     if isinstance(f, Eventually):
         deps = f.right_formula.info['deps']
@@ -341,7 +338,7 @@ def measure(f, n=0):
             return 1-m
         else:
             num_vars = f.info['deps'].count()
-            return count(expand(f))/(2**num_vars)
+            return sat_measure(expand(f, n))
 
 ''' Main '''
 init()
