@@ -7,7 +7,6 @@ Module for measuring LTL formulas.
 '''
 import re
 from sys import argv, setrecursionlimit
-from copy import deepcopy
 from spec_space.parser.parser import LTL_PARSER
 from spec_space.formula import TrueFormula, FalseFormula, Constant, Next, \
         VarNext, Disjunction, Conjunction, UnaryFormula, Literal, \
@@ -35,17 +34,20 @@ setrecursionlimit(100000)
 ''' Maps atomic propositions to sets of time indexes. '''
 class DepTracker:
 
+    ''' Constructor. '''
     def __init__(self, literal=None, indexes=None):
         self.literals = {}
         if literal != None and indexes != None:
             self.add(literal, indexes)
 
+    ''' Add an AP to the tracker, map it to given set of indexes.  '''
     def add(self, literal, indexes):
         if self.literals.get(literal) == None:
             self.literals[literal] = indexes
         else:
             self.literals[literal] = self.literals[literal].union(indexes)
 
+    ''' Calculate the union of this tracker and another. '''
     def union(self, other):
         new = DepTracker()
         if other == None:
@@ -61,6 +63,8 @@ class DepTracker:
 
         return new
 
+    ''' Determine whether the intersection of tracked literals between this 
+        tracker and another is empty. Return true iff emtpy. '''
     def isdisjoint(self, other):
         if len(self.literals) <= len(other.literals):
             mine = self.literals
@@ -74,6 +78,7 @@ class DepTracker:
                 return False
         return True
 
+    ''' Count the number of tracked variables. '''
     def count(self):
         cnt = 0
         for v in self.literals.values():
@@ -81,12 +86,15 @@ class DepTracker:
                 cnt += 1
         return cnt
 
+    ''' Test whether each literal is tracked for at most one time index. '''    
     def timeindependent(self):
         for v in self.literals.values():
             if len(v) > 1:
                 return False
         return True
 
+    ''' Produce a shifted version of this tracker; time index of each tracked
+        literal is increased by n. '''
     def shifted(self, n):
         new = DepTracker()
         for k, v in self.literals.items():
@@ -97,6 +105,8 @@ class DepTracker:
             new.add(k, indexes)
         return new
 
+    ''' Produce a saturated version of this tracker; each literal will be tracked
+        from its smallest time index up to time bound N. '''
     def saturated(self):
         new = DepTracker()        
         for k, v in self.literals.items():
@@ -342,16 +352,13 @@ def measure(f, n=0):
 
 ''' Main '''
 init()
-traverse(expr1, simplify)
-traverse(expr1, compute_deps)
-print(measure(expr1))
-
-# f1, d1 = expand(expr1, 0)
-# print(expr1.right_formula.info['ldeps'].isdisjoint(expr1.right_formula.info['rdeps']))
-# print(f1)
-# exit()
-
-
+if (expr2 == None):
+    traverse(expr1, simplify)
+    traverse(expr1, compute_deps)
+    print(measure(expr1))
+else:
+    # FIXME: compute symmetric difference.
+    
 #print(count(expr1.generate(PyEDASymbolSet)))
 #print(expr("x & 1"))
 #f = LTL_PARSER.parse("G(tom & maso)")
