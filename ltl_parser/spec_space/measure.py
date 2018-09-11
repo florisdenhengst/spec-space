@@ -34,10 +34,10 @@ setrecursionlimit(100000)
 ''' Maps atomic propositions to sets of time indexes. '''
 class DepTracker:
 
-    def __init__(self, lit=None, n=None):
+    def __init__(self, literal=None, indexes=None):
         self.literals = {}
-        if lit != None and n != None:
-            self.add(lit, n)
+        if literal != None and indexes != None:
+            self.add(literal, indexes)
 
     def add(self, literal, indexes):
         if self.literals.get(literal) == None:
@@ -86,111 +86,90 @@ class DepTracker:
                 return False
         return True
 
-    def shift(self, n):
+    def shifted(self, n):
+        new = DepTracker()
         for k, v in self.literals.items():
-            shifted = set([])
+            indexes = set([])
             for t in v.values():
-                shifted.add(v+n)    
-            self.literals[k] = shifted
-        return self
+                if (v+n <= N):
+                    indexes.add(v+n)    
+            new.add(k, indexes)
+        return new
 
-    def saturate(self):
+    def saturated(self):
+        new = DepTracker()        
         for k, v in self.literals.items():
-            self.literals[k] = set(range(min(v), N))
-        return self
+            new.add(k, set(range(min(v), N+1)))
+        return new
 
 ''' Expand a given LTL formula into a Boolean expression, observing time bound N. 
-    This function returns a tuple. The first item in the returned tuple is a 
-    string representation of the expansion; the second is a set containing all 
-    the atomic propositions featured in the expression. As a side effect, this
-    traversal will decorate all BinaryFormula nodes in the AST. In particular, 
-    it sets the nodes' info['expr'], info['ldeps'], and info['rdeps'] fields. 
-    Some basic constant folding is done to eradicate trivial bloat in the 
-    generated expression. '''
-def expand(f, n=0): # FIXME: separate the dependency analysis from the expansion
+    Returns a string representation of the expansion. Some basic constant folding 
+    is done to eradicate trivial bloat in the generated expression. '''
+def expand(f, n=0):
 
     if isinstance(f, Literal):
         if (n > N):
-            return ["false", None]
-            
+            return fls        
         else:
             name = f.generate(with_base_names=True)
-            f.info['deps'] = DepTracker(name, set([n]))
-            return [name + str(n), f.info['deps']]
+        return name + str(n)
 
     if isinstance(f, BinaryFormula):
         
-        l, ldeps = expand(f.left_formula, n)
-        r, rdeps = expand(f.right_formula, n)
-        f.info['ldeps'] = ldeps
-        f.info['rdeps'] = rdeps
+        l = expand(f.left_formula, n)
+        r = expand(f.right_formula, n)
         
-        if isinstance(f, Conjunction):    
+        if isinstance(f, Conjunction):
             if (l == fls or r == fls):
-                f.info['expr'] = fls
-                return [f.info['expr'], None]
+                return fls
             elif (l == tru):
-                f.info['expr'] = r
-                return [f.info['expr'], rdeps]
+                return r
             elif (r == tru):
-                f.info['expr'] = l
-                return [f.info['expr'], ldeps]
+                return l
             elif (r == tru and l == tru):
-                f.info['expr'] = true
-                return [f.info['expr'], None]
+                return tru
             else:
-                f.info['expr'] = "(" + l + " " + lnd + " " + r + ")"
-                return [f.info['expr'], ldeps.union(rdeps)] # FIXME: could ldeps be None?
+                return "(" + l + " " + lnd + " " + r + ")"
         elif isinstance(f, Disjunction):
             if (l == fls and r == fls):
-                f.info['expr'] = fls
-                return [f.info['expr'], None]
+                return fls
             elif (l == fls):
-                f.info['expr'] = r
-                return [f.info['expr'], rdeps]    
+                return r
             elif (r == fls):
-                f.info['expr'] = l
-                return [f.info['expr'], ldeps]
+                return l
             else:
-                f.info['expr'] = "(" + l + " | " + r + ")"
-                return [f.info['expr'], ldeps.union(rdeps)]
+                return "(" + l + " " + lor + " " + r + ")"
         else:
             raise Exception("Error: cannot expand unsupported BinaryFormula!")
     else:
         if isinstance(f, Globally):
-            conj = tru
-            deps = DepTracker()
+            conj = "(" + tru
             while (n <= N):
-                e, d = expand(f.right_formula, n)
+                e = expand(f.right_formula, n)
                 if e == fls:
-                    return [fls, None]
+                    return fls
                 else:
                     conj += " " + lnd + " " + e
-                    deps = deps.union(d)
                 n += 1
-            f.info['deps'] = deps
-            return [conj, deps]  
+            return conj + ")"
         elif isinstance(f, Eventually):
-            disj = fls
-            deps = DepTracker()
+            disj = "(" + fls
             while (n <= N):
-                e, d = expand(f.right_formula, n)
+                e = expand(f.right_formula, n)
                 if e != fls:
                     disj += " " + lor + " " + e 
-                    deps = deps.union(d)
                 n += 1
-            f.info['deps'] = deps
-            return [disj, deps]
+            return disj + ")"
         elif isinstance(f, Next) or isinstance(f, VarNext):
             return expand(f.right_formula, n+1)
         elif isinstance(f, Negation):
-            e, d = expand(f.right_formula, n)
+            e = expand(f.right_formula, n)
             if e == fls:
-                return [tru, None]
+                return tru
             elif e == fls:
-                return [fls, None]
+                return fls
             else:
-                return [neg + e, d]
+                return neg + e
         else:
             pass
             #return expand(f.right_formula, n)
@@ -222,7 +201,7 @@ def init():
 ''' Pass the given Boolean formula to SharpSAT. 
     Return the number of satisfying models. '''
 def count(formula):
-
+    print(formula)
     cnf = expr(formula).to_cnf()
     print(cnf)
     ''' False '''
@@ -288,10 +267,9 @@ def compute_deps(f):
         f.info['lrdisjoint'] = ldeps.isdisjoint(rdeps)
     else:
         if isinstance(f, Globally) or isinstance(f, Eventually):
-            f.info['deps'] = f.right_formula.info['deps'].saturate()
-            print("HERE!!")
-        elif isinstance(f, Next) or isinstance(f, VarNext):
-            f.info['deps'] = f.right_formula.info['deps'].shift(1)
+            f.info['deps'] = f.right_formula.info['deps'].saturated()
+        elif isinstance(f, Next) or isinstance(f, VarNext): # check whether X could be parameterized
+            f.info['deps'] = f.right_formula.info['deps'].shifted(1)
         else:
             raise Exception("Unsupported AST node: " + type(f).__name__)
     
@@ -323,7 +301,7 @@ def measure(f, n=0):
         else:
             print("overlapping")
             num_vars = f.info['deps'].count()   # FIXME: could ldeps or rdeps be None?
-            num_asrs = count(f.info['expr']) # using a cached version; should probably do this on the fly...?
+            num_asrs = count(expand(f, n)) # using a cached version; should probably do this on the fly...?
             return num_asrs / 2**num_vars
 
     if isinstance(f, Disjunction):
@@ -333,7 +311,7 @@ def measure(f, n=0):
         else:
             print("overlapping")
             num_vars = f.info['deps'].count()   # FIXME: could ldeps or rdeps be None?
-            num_asrs = count(f.info['expr']) # using a cached version; should probably do this on the fly...?
+            num_asrs = count(expand(f, n)) # using a cached version; should probably do this on the fly...?
             return num_asrs / 2**num_vars
 
     if isinstance(f, Next):
@@ -341,36 +319,32 @@ def measure(f, n=0):
 
     if isinstance(f, Globally):
         deps = f.right_formula.info['deps']
-
+        print("rfdeps: " + str(deps.literals))
         if deps.timeindependent():
             print("here")
             m = 1
-            for i in range(0, N):
+            for i in range(0, N+1):
                 m *= measure(f.right_formula, n+i) # we will easily move past N here.
             return m
         else:
-            print(f.info['deps'].literals)
-            # FIXME: go to the model counter
-            pass
+            num_vars = f.info['deps'].count()
+            return count(expand(f))/(2**num_vars)
 
     if isinstance(f, Eventually):
         deps = f.right_formula.info['deps']
-        
+        print("rfdeps: " + str(deps.literals))
         if deps.timeindependent():
             print("here")
             m = 1
-            for i in range(0, N):
+            for i in range(0, N+1):
                 m *= 1 - measure(f.right_formula, n+i) # we will easily move past N here.
             return 1-m
         else:
-            print(f.info['deps'].literals)
-            # FIXME: go to the model counter
-            pass
+            num_vars = f.info['deps'].count()
+            return count(expand(f))/(2**num_vars)
 
 ''' Main '''
 init()
-#FIXME: run input expression through PyEDA for simplification first
-# 
 traverse(expr1, simplify)
 traverse(expr1, compute_deps)
 print(measure(expr1))
