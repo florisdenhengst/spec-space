@@ -247,9 +247,9 @@ def simplify(f):
             else:
                 return Disjunction(Negation(l),r)
         elif isinstance(f, DoubleImplication):
+            return Disjunction(Conjunction(l, r), Conjunction(Negation(l), Negation(r)))
             # ((l and r) or (not l and not r))
             # FIXME: add reductions here
-            return Disjunction(Conjunction(l, r), Conjunction(Negation(l), Negation(r)))
     return f
 
 ''' Recursively apply given function to each node in the AST. '''
@@ -355,13 +355,13 @@ def measure(f, n=0):
 ''' Main '''
 init()
 if (expr2 == None):
-    traverse(expr1, simplify)
-    traverse(expr1, compute_deps)
+    expr1 = traverse(expr1, simplify)
+    expr1 = traverse(expr1, compute_deps)
     print(measure(expr1))
 else:
     diff = Disjunction(Conjunction(expr1, Negation(expr2)), Conjunction(Negation(expr1), expr2))
-    traverse(diff, simplify)
-    traverse(diff, compute_deps)
+    diff = traverse(diff, simplify)
+    diff = traverse(diff, compute_deps)
     print(measure(diff))
 
 #print(count(expr1.generate(PyEDASymbolSet)))
