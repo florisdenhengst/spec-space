@@ -281,6 +281,8 @@ def compute_deps(f):
             f.info['deps'] = f.right_formula.info['deps'].saturated()
         elif isinstance(f, Next) or isinstance(f, VarNext): # check whether X could be parameterized
             f.info['deps'] = f.right_formula.info['deps'].shifted(1)
+        elif isinstance(f, Negation):
+            f.info['deps'] = f.right_formula.info['deps']
         else:
             raise Exception("Unsupported AST node: " + type(f).__name__)
     
@@ -357,8 +359,11 @@ if (expr2 == None):
     traverse(expr1, compute_deps)
     print(measure(expr1))
 else:
-    # FIXME: compute symmetric difference.
-    
+    diff = Disjunction(Conjunction(expr1, Negation(expr2)), Conjunction(Negation(expr1), expr2))
+    traverse(diff, simplify)
+    traverse(diff, compute_deps)
+    print(measure(diff))
+
 #print(count(expr1.generate(PyEDASymbolSet)))
 #print(expr("x & 1"))
 #f = LTL_PARSER.parse("G(tom & maso)")
