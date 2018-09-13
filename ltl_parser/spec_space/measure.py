@@ -108,11 +108,13 @@ class DepTracker:
         return new
 
     ''' Produce a saturated version of this tracker; each literal will be tracked
-        from its smallest time index up to time bound N. '''
-    def saturated(self):
-        new = DepTracker()        
+        from its smallest time index up to the given time bound (default=N). '''
+    def saturated(self, time_bound=None):
+        new = DepTracker()
+        if time_bound == None:
+            time_bound = N
         for k, v in self.literals.items():
-            new.add(k, set(range(min(v), N+1)))
+            new.add(k, set(range(min(v), time_bound+1)))
         return new
 
 ''' Expand a given LTL formula into a Boolean expression, observing time bound N. 
@@ -152,6 +154,25 @@ def expand(f, n=0):
                 return l
             else:
                 return "(" + l + " " + lor + " " + r + ")"
+        elif isinstance(f, Until):
+            first = f.left_formula
+            then = f.right_formula
+
+            disj = then
+            for j in range(N):
+                conj = first
+                elem = first
+                out = Next(then)
+                for i in range(j):
+                    conj = Conjunction(conj, Next(elem))
+                    elem = Next(elem)
+                    out = Next(out)
+
+                conj = Conjunction(conj, out)
+                disj = Disjunction(disj, conj)
+            return expand(disj)
+
+            raise Exception("Error: cannot expand unsupported BinaryFormula!")
         else:
             raise Exception("Error: cannot expand unsupported BinaryFormula!")
     else:
@@ -184,8 +205,10 @@ def expand(f, n=0):
             else:
                 return neg + e
         else:
-            pass
-            #return expand(f.right_formula, n)
+            if f.right_formula != None:
+                raise Exception("Not expanding the tree for AST node: " + type(f).__name__)
+            
+            return f
 
 
 ''' Print a help message and exit. '''
@@ -265,26 +288,6 @@ def simplify(f):
         if isinstance(f, WeakUntil):
             return Disjunction(simplify(Until(f.left_formula, f.right_formula)), Globally(f.left_formula))
 
-        # if isinstance(f, Until):
-        
-        #     first = f.left_formula
-        #     then = f.right_formula
-
-        #     disj = then
-        #     for j in range(N):
-
-        #         conj = first
-        #         elem = first
-        #         out = Next(then)
-        #         for i in range(j):
-        #             conj = Conjunction(conj, Next(elem))
-        #             elem = Next(elem)
-        #             out = Next(out)
-
-        #         conj = Conjunction(conj, out)
-        #         disj = Disjunction(disj, conj)
-        # FIXME: We need to do the expansion in order to be able to do the benchmarks
-        #     return disj
     return f
 
 ''' Recursively apply given function to each node in the AST. '''
@@ -309,9 +312,14 @@ def compute_deps(f):
     elif isinstance(f, TrueFormula) or isinstance(f, FalseFormula):
         f.info['deps'] = DepTracker()
     elif isinstance(f, BinaryFormula):
-        print(type(f.left_formula))
-        ldeps = f.left_formula.info['deps']
-        rdeps = f.right_formula.info['deps']
+        if isinstance(f, Until):
+            ldeps = f.left_formula.info['deps'].saturated(N-1)
+            rdeps = f.right_formula.info['deps'].saturated(N)
+        elif isinstance(f, Conjunction) or isinstance(f, Disjunction):
+            ldeps = f.left_formula.info['deps']
+            rdeps = f.right_formula.info['deps']
+        else:
+            raise Exception("Unsupported AST node: " + type(f).__name__)
         f.info['deps'] = ldeps.union(rdeps)
         f.info['lrdisjoint'] = ldeps.isdisjoint(rdeps)
     else:
@@ -322,8 +330,7 @@ def compute_deps(f):
         elif isinstance(f, Negation):
             f.info['deps'] = f.right_formula.info['deps']
         else:
-            pass
-            #raise Exception("Unsupported AST node: " + type(f).__name__)
+            raise Exception("Unsupported AST node: " + type(f).__name__)
     
     return f
 
