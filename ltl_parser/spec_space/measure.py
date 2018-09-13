@@ -376,11 +376,11 @@ def measure(f, n=0):
         if f.info['lrdisjoint']:
             first = measure(f.left_formula)
             then = measure(f.right_formula)
-            print("a: " + str(first))
-            print("b: " + str(then))
+            #print("a: " + str(first))
+            #print("b: " + str(then))
             acc = then
             for i in range(N+1):
-                print("acc: " + str(acc))
+                #print("acc: " + str(acc))
                 acc = 1-(1-acc*first)*(1-then)
             return acc
         else:
@@ -416,7 +416,7 @@ def measure(f, n=0):
 init()
 
 if (expr2 == None):
-    print("Expression:" + expr1.generate(with_base_names=False))
+    #print("Expression:" + expr1.generate(with_base_names=False))
     expr1 = traverse(expr1, simplify)
     #print(expr1.generate(target, True))
     expr1 = traverse(expr1, compute_deps)
