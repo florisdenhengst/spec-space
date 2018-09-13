@@ -6,12 +6,13 @@ Module for measuring LTL formulas.
 @author: Marten Lohstroh
 '''
 import re
+from copy import copy, deepcopy
 from sys import argv, setrecursionlimit
 from spec_space.parser.parser import LTL_PARSER
 from spec_space.formula import TrueFormula, FalseFormula, Constant, Next, \
         VarNext, Disjunction, Conjunction, UnaryFormula, Literal, \
         BinaryFormula, Globally, Eventually, DoubleImplication, Implication, \
-        Negation;
+        Negation, Until, WeakUntil, Release;
 from pyeda.boolalg.expr import expr, DimacsCNF
 from pyeda.inter import expr2truthtable
 from subprocess import call, check_output
@@ -21,6 +22,7 @@ expr1 = None
 expr2 = None
 N = None
 
+source = PyEDASymbolSet()
 target = PyEDASymbolSet()
 
 fls = target.symbols['FALSE']
@@ -200,9 +202,9 @@ def init():
          help_exit()
 
     try:
-        expr1 = LTL_PARSER.parse(argv[2])
+        expr1 = LTL_PARSER.parse(argv[2], symbol_set_cls=source)
         if len(argv) > 3:
-            expr2 = LTL_PARSER.parse(argv[3])
+            expr2 = LTL_PARSER.parse(argv[3], symbol_set_cls=source)
     except Exception as e:
         help_exit()
 
@@ -210,7 +212,7 @@ def init():
         help_exit()
 
 ''' Pass the given Boolean formula to SharpSAT. 
-    Return the number of satisfying models. '''
+    Return the number of satisfying models devided by 2**nvars. '''
 def sat_measure(formula):
     cnf = expr(formula).to_cnf()
     
@@ -229,6 +231,8 @@ def sat_measure(formula):
 
         output = check_output(["bin/sharpSAT", "input.cnf"])
         m = re.search(r"# solutions \n([0-9]+)\n# END", output.decode('UTF-8'))
+        print(m.group(1))
+        print(nvars)
         return int(m.group(1))/2**nvars
 
 ''' Traversal function that reduces implications, double implications. '''
@@ -237,6 +241,7 @@ def simplify(f):
     if isinstance(f, BinaryFormula):
         l = f.left_formula
         r = f.right_formula
+
         if isinstance(f, Implication):
             if (l == FalseFormula or r == TrueFormula):
                 return TrueFormula()
@@ -246,10 +251,40 @@ def simplify(f):
                 return Negation(l)
             else:
                 return Disjunction(Negation(l),r)
-        elif isinstance(f, DoubleImplication):
+        
+        if isinstance(f, DoubleImplication):
             return Disjunction(Conjunction(l, r), Conjunction(Negation(l), Negation(r)))
             # ((l and r) or (not l and not r))
             # FIXME: add reductions here
+        
+        # ψ W (ψ ∧ φ)
+        if isinstance(f, Release):
+            return simplify(WeakUntil(f.right_formula, Conjunction(f.left_formula, f.right_formula)))
+
+        # (φ U ψ) ∨ G φ
+        if isinstance(f, WeakUntil):
+            return Disjunction(simplify(Until(f.left_formula, f.right_formula)), Globally(f.left_formula))
+
+        # if isinstance(f, Until):
+        
+        #     first = f.left_formula
+        #     then = f.right_formula
+
+        #     disj = then
+        #     for j in range(N):
+
+        #         conj = first
+        #         elem = first
+        #         out = Next(then)
+        #         for i in range(j):
+        #             conj = Conjunction(conj, Next(elem))
+        #             elem = Next(elem)
+        #             out = Next(out)
+
+        #         conj = Conjunction(conj, out)
+        #         disj = Disjunction(disj, conj)
+        # FIXME: We need to do the expansion in order to be able to do the benchmarks
+        #     return disj
     return f
 
 ''' Recursively apply given function to each node in the AST. '''
@@ -271,7 +306,10 @@ def compute_deps(f):
     if isinstance(f, Literal):
         name = f.generate(with_base_names=True)
         f.info['deps'] = DepTracker(name, set([0]))
+    elif isinstance(f, TrueFormula) or isinstance(f, FalseFormula):
+        f.info['deps'] = DepTracker()
     elif isinstance(f, BinaryFormula):
+        print(type(f.left_formula))
         ldeps = f.left_formula.info['deps']
         rdeps = f.right_formula.info['deps']
         f.info['deps'] = ldeps.union(rdeps)
@@ -284,13 +322,14 @@ def compute_deps(f):
         elif isinstance(f, Negation):
             f.info['deps'] = f.right_formula.info['deps']
         else:
-            raise Exception("Unsupported AST node: " + type(f).__name__)
+            pass
+            #raise Exception("Unsupported AST node: " + type(f).__name__)
     
     return f
 
 ''' Measure the given formula. '''
 def measure(f, n=0):
-    print(f.generate(with_base_names=False))
+    #print(f.generate(with_base_names=False))
     
     if isinstance(f, TrueFormula):
         return 1
@@ -309,28 +348,42 @@ def measure(f, n=0):
 
     if isinstance(f, Conjunction):
         if f.info['lrdisjoint']:
-            print("disjoint")
+            #print("disjoint")
             return measure(f.right_formula, n) * measure(f.left_formula, n)
         else:
-            print("overlapping")
+            #print("overlapping")
             return sat_measure(expand(f, n))
 
     if isinstance(f, Disjunction):
         if f.info['lrdisjoint']:
-            print("disjoint")
+            #print("disjoint")
             return 1 - (1-measure(f.right_formula, n)) * (1-measure(f.left_formula, n))
         else:
-            print("overlapping")
+            #print("overlapping")
             return sat_measure(expand(f, n))
 
     if isinstance(f, Next):
         return measure(f.right_formula, n+1)
 
+    if isinstance(f, Until):
+        if f.info['lrdisjoint']:
+            first = measure(f.left_formula)
+            then = measure(f.right_formula)
+            print("a: " + str(first))
+            print("b: " + str(then))
+            acc = then
+            for i in range(N+1):
+                print("acc: " + str(acc))
+                acc = 1-(1-acc*first)*(1-then)
+            return acc
+        else:
+            return sat_measure(expand(f, n))
+
     if isinstance(f, Globally):
         deps = f.right_formula.info['deps']
-        print("rfdeps: " + str(deps.literals))
+        #print("rfdeps: " + str(deps.literals))
         if deps.timeindependent():
-            print("here")
+            #print("here")
             m = 1
             for i in range(0, N+1):
                 m *= measure(f.right_formula, n+i) # we will easily move past N here.
@@ -341,9 +394,9 @@ def measure(f, n=0):
 
     if isinstance(f, Eventually):
         deps = f.right_formula.info['deps']
-        print("rfdeps: " + str(deps.literals))
+        #print("rfdeps: " + str(deps.literals))
         if deps.timeindependent():
-            print("here")
+            #print("here")
             m = 1
             for i in range(0, N+1):
                 m *= 1 - measure(f.right_formula, n+i) # we will easily move past N here.
@@ -354,9 +407,13 @@ def measure(f, n=0):
 
 ''' Main '''
 init()
+
 if (expr2 == None):
+    print("Expression:" + expr1.generate(with_base_names=False))
     expr1 = traverse(expr1, simplify)
+    #print(expr1.generate(target, True))
     expr1 = traverse(expr1, compute_deps)
+    print("Expression:" + expr1.generate(with_base_names=False))
     print(measure(expr1))
 else:
     diff = Disjunction(Conjunction(expr1, Negation(expr2)), Conjunction(Negation(expr1), expr2))

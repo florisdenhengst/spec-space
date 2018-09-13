@@ -90,7 +90,7 @@ class PyEDASymbolSet(object):
         'NEXT' : r'X',
         'VAR_NEXT' : r'next',
         'UNTIL' : r'U',
-        'RELEASE' : r'V',
+        'RELEASE' : r'R',
         'WEAK_UNTIL' : r'W',
         'IMPLICATION' : r'->',
         'DOUBLE_IMPLICATION' : r'<->',

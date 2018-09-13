@@ -95,11 +95,11 @@ class Parser(object):
 
     def p_expr_release(self, p):
         '''expr : expr RELEASE expr'''
-        raise NotImplementedError
+        p[0] = formula.Release(p[1], p[3])
 
     def p_expr_weak_until(self, p):
         '''expr : expr WEAK_UNTIL expr'''
-        raise NotImplementedError
+        p[0] = formula.WeakUntil(p[1], p[3])
 
     def p_expr_prop(self, p):
         '''expr : prop'''

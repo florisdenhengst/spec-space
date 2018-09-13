@@ -43,7 +43,7 @@ def find_precedence_index(symbol, precedence_tuple=None):
         if symbol in precedence_tuple[i]:
             direction = precedence_tuple[i][0]
             return i, direction
-    raise NotFoundError
+    raise NotFoundError 
 
 
 
@@ -247,7 +247,6 @@ class BinaryFormula(LTLFormula):
     doc
     '''
 
-
     def __init__(self, left_formula, right_formula, merge_literals = False):
         '''
         doc
@@ -263,6 +262,7 @@ class BinaryFormula(LTLFormula):
         LTLFormula.__init__(self)
         self.left_formula = left_formula
         self.right_formula = right_formula
+        self.merge_literals = merge_literals
 
         self.process_literals(merge_literals)
 
@@ -493,7 +493,6 @@ class UnaryFormula(LTLFormula):
         if symbol_set is None:
             symbol_set = BaseSymbolSet
 
-
         if right_symbol is None:
             right_symbol = self.right_formula.Symbol
 
@@ -638,6 +637,18 @@ class Until(BinaryFormula):
     doc
     '''
     Symbol = 'UNTIL'
+
+class Release(BinaryFormula):
+    '''
+    doc
+    '''
+    Symbol = 'RELEASE'
+
+class WeakUntil(BinaryFormula):
+    '''
+    doc
+    '''
+    Symbol = 'WEAK_UNTIL'
 
 class Negation(UnaryFormula):
     '''
