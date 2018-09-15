@@ -17,10 +17,16 @@ from pyeda.boolalg.expr import expr, DimacsCNF
 from pyeda.inter import expr2truthtable
 from subprocess import call, check_output
 from spec_space.symbol_sets import PyEDASymbolSet
+#import hashlib
 
 expr1 = None
 expr2 = None
 N = None
+
+cache = {}
+
+bypass_count = True
+do_memoize = True
 
 source = PyEDASymbolSet()
 target = PyEDASymbolSet()
@@ -213,21 +219,28 @@ def expand(f, n=0):
 
 ''' Print a help message and exit. '''
 def help_exit():
-    print("Usage: python measure.py [TIME_BOUND] LTL_EXPR1 [LTL_EXPR2]")
+    print("Usage: python measure.py [-d] [TIME_BOUND] LTL_EXPR1 [LTL_EXPR2]")
     exit(1)
 
 ''' Read commandline arguments. '''
 def init():
-    global N, expr1, expr2
+    global N, expr1, expr2, bypass_count
+    
+    offset = 0
+    if (len(argv) > 2):
+        if argv[1] == "-d":
+            bypass_count = False
+            offset = 1
+
     try:
-        N = int(argv[1])
+        N = int(argv[offset +1])
     except Exception as e:
          help_exit()
 
     try:
-        expr1 = LTL_PARSER.parse(argv[2], symbol_set_cls=source)
-        if len(argv) > 3:
-            expr2 = LTL_PARSER.parse(argv[3], symbol_set_cls=source)
+        expr1 = LTL_PARSER.parse(argv[offset+2], symbol_set_cls=source)
+        if len(argv) > offset+3:
+            expr2 = LTL_PARSER.parse(argv[offset+3], symbol_set_cls=source)
     except Exception as e:
         help_exit()
 
@@ -238,7 +251,7 @@ def init():
     Return the number of satisfying models devided by 2**nvars. '''
 def sat_measure(formula):
     cnf = expr(formula).to_cnf()
-    
+    #print(cnf)
     ''' False '''
     if str(cnf) == "0":
         return 0
@@ -249,14 +262,22 @@ def sat_measure(formula):
         ''' Sat? '''
         file = open('input.cnf', 'w')
         litmap, nvars, clauses = cnf.encode_cnf()
-        file.write(str(DimacsCNF(nvars, clauses)))
-        file.close()
+        dimacs = str(DimacsCNF(nvars, clauses))
+        
+        if cache.get(dimacs) != None and do_memoize:
+            return cache[dimacs]
+        else:
+            file.write(dimacs)
+            file.close()
 
-        output = check_output(["bin/sharpSAT", "input.cnf"])
-        m = re.search(r"# solutions \n([0-9]+)\n# END", output.decode('UTF-8'))
-        print(m.group(1))
-        print(nvars)
-        return int(m.group(1))/2**nvars
+            output = check_output(["bin/sharpSAT", "input.cnf"])
+            m = re.search(r"# solutions \n([0-9]+)\n# END", output.decode('UTF-8'))
+            #print(m.group(1))
+            #print("vars: " + str(nvars))
+            #print("clauses: " + (str(len(clauses))))
+            # print(str(DimacsCNF(nvars, clauses)))
+            cache[dimacs] = int(m.group(1))/2**nvars 
+            return cache[dimacs]
 
 ''' Traversal function that reduces implications, double implications. '''
 def simplify(f):
@@ -313,7 +334,7 @@ def compute_deps(f):
         f.info['deps'] = DepTracker()
     elif isinstance(f, BinaryFormula):
         if isinstance(f, Until):
-            ldeps = f.left_formula.info['deps'].saturated(N-1)
+            ldeps = f.left_formula.info['deps'].saturated(max(N-1, 0))
             rdeps = f.right_formula.info['deps'].saturated(N)
         elif isinstance(f, Conjunction) or isinstance(f, Disjunction):
             ldeps = f.left_formula.info['deps']
@@ -337,7 +358,7 @@ def compute_deps(f):
 ''' Measure the given formula. '''
 def measure(f, n=0):
     #print(f.generate(with_base_names=False))
-    
+    global bypass_count
     if isinstance(f, TrueFormula):
         return 1
 
@@ -354,26 +375,28 @@ def measure(f, n=0):
         return 1 - measure(f.right_formula, n)
 
     if isinstance(f, Conjunction):
-        if f.info['lrdisjoint']:
+        if f.info['lrdisjoint'] and bypass_count:
             #print("disjoint")
             return measure(f.right_formula, n) * measure(f.left_formula, n)
         else:
-            #print("overlapping")
+            #print("conjoint")
             return sat_measure(expand(f, n))
 
     if isinstance(f, Disjunction):
-        if f.info['lrdisjoint']:
+        if f.info['lrdisjoint'] and bypass_count:
             #print("disjoint")
             return 1 - (1-measure(f.right_formula, n)) * (1-measure(f.left_formula, n))
         else:
-            #print("overlapping")
+            #print("conjoint")
             return sat_measure(expand(f, n))
 
     if isinstance(f, Next):
         return measure(f.right_formula, n+1)
 
     if isinstance(f, Until):
-        if f.info['lrdisjoint']:
+        if f.info['lrdisjoint'] \
+                and f.info['deps'].timeindependent() \
+                and bypass_count:
             first = measure(f.left_formula)
             then = measure(f.right_formula)
             #print("a: " + str(first))
@@ -420,21 +443,11 @@ if (expr2 == None):
     expr1 = traverse(expr1, simplify)
     #print(expr1.generate(target, True))
     expr1 = traverse(expr1, compute_deps)
-    print("Expression:" + expr1.generate(with_base_names=False))
+    #print("Expression:" + expr1.generate(with_base_names=False))
     print(measure(expr1))
 else:
+    print("Distance")
     diff = Disjunction(Conjunction(expr1, Negation(expr2)), Conjunction(Negation(expr1), expr2))
     diff = traverse(diff, simplify)
     diff = traverse(diff, compute_deps)
     print(measure(diff))
-
-#print(count(expr1.generate(PyEDASymbolSet)))
-#print(expr("x & 1"))
-#f = LTL_PARSER.parse("G(tom & maso)")
-#f = LTL_PARSER.parse("F(G(tom & maso))")
-#f = LTL_PARSER.parse("((tom | maso) & (tom | maso))") # FIXME: this exposes the renaming issue. It should not all be considered the same vars.
-#f = LTL_PARSER.parse("G(tom & X tom)")
-#f = LTL_PARSER.parse("G(tom & X tom)")
-#f = LTL_PARSER.parse("F(G(tom & X(maso)))")
-#f = LTL_PARSER.parse("a & false")
-#f = LTL_PARSER.parse("a & XXXXa")
