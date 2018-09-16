@@ -273,8 +273,8 @@ def sat_measure(formula):
             output = check_output(["bin/sharpSAT", "input.cnf"])
             m = re.search(r"# solutions \n([0-9]+)\n# END", output.decode('UTF-8'))
             #print(m.group(1))
-            #print("vars: " + str(nvars))
-            #print("clauses: " + (str(len(clauses))))
+            print("vars: " + str(nvars))
+            print("clauses: " + (str(len(clauses))))
             # print(str(DimacsCNF(nvars, clauses)))
             cache[dimacs] = int(m.group(1))/2**nvars 
             return cache[dimacs]
