@@ -5,10 +5,10 @@ In *Incer Romeo et al.*, we propose a measure and a metric on the sets of infini
 # Installation
 
 1. To install, run:
-pip install -e .
+`pip install -e `
 
 2. To install dependencies, run:
-./install_deps
+`./install_deps`
 
 NOTE: building sharpSAT requires G++ 4.7.
 
