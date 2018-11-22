@@ -5,7 +5,7 @@ In *Incer Romeo et al.*, we propose a measure and a metric on the sets of infini
 # Installation
 
 1. To install, run:
-`pip install -e `
+`pip install -e .`
 
 2. To install dependencies, run:
 `./install_deps`
@@ -13,4 +13,8 @@ In *Incer Romeo et al.*, we propose a measure and a metric on the sets of infini
 NOTE: building sharpSAT requires G++ 4.7.
 
 # Usage
-TBA
+For a timebound of 5, calculate the measure of 'F a => F b':
+`python measure.py 5 'F a -> F b'`
+
+For a timebound of 5, calculate the difference between formulas 'F a' and 'XF a':
+`python measure.py -d 5 'F a' 'XF a'`
