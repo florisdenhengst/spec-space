@@ -14,7 +14,9 @@ NOTE: building sharpSAT requires G++ 4.7.
 
 # Usage
 For a timebound of 5, calculate the measure of 'F a => F b':
+
 `python measure.py 5 'F a -> F b'`
 
 For a timebound of 5, calculate the difference between formulas 'F a' and 'XF a':
+
 `python measure.py -d 5 'F a' 'XF a'`
