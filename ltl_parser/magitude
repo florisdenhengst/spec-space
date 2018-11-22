@@ -1,2 +1,0 @@
-#!/bin/bash
-python spec_space/measure.py $1

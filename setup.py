@@ -13,7 +13,7 @@ import sys
 here = os.path.abspath(os.path.dirname(__file__))
 
 # Get the long description from the relevant file
-with open(os.path.join(here, 'DESCRIPTION.md')) as f:
+with open(os.path.join(here, 'README.md')) as f:
     long_description = f.read()
 setup(
     name='spec-space',
@@ -27,11 +27,11 @@ setup(
     long_description=long_description,
 
     # The project's main homepage.
-    url='https://github.com/ianno/spec-space',
+    url='https://github.com/icyphy/spec-space',
 
     # Author details
-    author='Antonio Iannopollo',
-    author_email='antonio@berkeley.edu',
+    author='Antonio Iannopollo, Inigo Incer, Marten Lohstroh',
+    author_email='[antonio, inigo, marten]@berkeley.edu',
 
     # Choose your license
     license='GPLv3',
