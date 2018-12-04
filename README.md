@@ -20,3 +20,6 @@ For a timebound of 5, calculate the measure of 'F a => F b':
 For a timebound of 5, calculate the distance between formulas 'F a' and 'XF a':
 
 `python measure.py -d 5 'F a' 'XF a'`
+
+# License
+This project is licensed under the terms of the GNU General Public License v3.0 license.
