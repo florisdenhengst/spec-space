@@ -100,12 +100,13 @@ class PyEDASymbolSet(object):
         'FALSE' : r'0',
         'LPAREN' : '(',
         'RPAREN' : ')',
-        'GE' : r'>',
         'GEQ' : r'>=',
+        'GE'  : r',', #NOTE FdH: hack to avoid collision with implication
         'LE' : r'<',
         'LEQ' : r'<=',
         'ADD' : r'+',
-        'SUB' : r'-',
+        'SUB' : r'.', #NOTE FdH: hack to avoid collision with implication
+
         'MUL' : r'*',
         'DIV' : r'/'
         }

@@ -232,26 +232,20 @@ def init():
             bypass_count = False
             offset = 1
 
-    try:
-        N = int(argv[offset +1])
-    except Exception as e:
-         help_exit()
+    N = int(argv[offset +1])
 
-    try:
-        expr1 = LTL_PARSER.parse(argv[offset+2], symbol_set_cls=source)
-        if len(argv) > offset+3:
-            expr2 = LTL_PARSER.parse(argv[offset+3], symbol_set_cls=source)
-    except Exception as e:
-        help_exit()
+    expr1 = LTL_PARSER.parse(argv[offset+2], symbol_set_cls=source)
+    if len(argv) > offset+3:
+        expr2 = LTL_PARSER.parse(argv[offset+3], symbol_set_cls=source)
 
     if N == None or expr1 == None:
+        print("No expression")
         help_exit()
 
 ''' Pass the given Boolean formula to SharpSAT. 
     Return the number of satisfying models devided by 2**nvars. '''
 def sat_measure(formula):
     cnf = expr(formula).to_cnf()
-    #print(cnf)
     ''' False '''
     if str(cnf) == "0":
         return 0
@@ -446,7 +440,6 @@ if (expr2 == None):
     #print("Expression:" + expr1.generate(with_base_names=False))
     print(measure(expr1))
 else:
-    print("Distance")
     diff = Disjunction(Conjunction(expr1, Negation(expr2)), Conjunction(Negation(expr1), expr2))
     diff = traverse(diff, simplify)
     diff = traverse(diff, compute_deps)
